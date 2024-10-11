@@ -112,7 +112,8 @@ let package = Package(
                 "TunnelKitAppExtension",
                 "TunnelKitOpenVPNCore",
                 "TunnelKitOpenVPNManager",
-                "TunnelKitOpenVPNProtocol"
+                "TunnelKitOpenVPNProtocol",
+                .product(name: "OpenSSL", package: "OpenSSL-Package")
             ]
         ),
         .target(
