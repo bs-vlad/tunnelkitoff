@@ -17,12 +17,12 @@
 # define OPENSSL_SRTP_H
 # pragma once
 
-#include <OpenSSL/macros.h>
+# include <openssl/macros.h>
 # ifndef OPENSSL_NO_DEPRECATED_3_0
 #  define HEADER_D1_SRTP_H
 # endif
 
-#include <OpenSSL/ssl.h>
+# include <openssl/ssl.h>
 
 #ifdef  __cplusplus
 extern "C" {

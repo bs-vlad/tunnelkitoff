@@ -13,22 +13,22 @@
 # define OPENSSL_ERR_H
 # pragma once
 
-#include <OpenSSL/macros.h>
+# include <openssl/macros.h>
 # ifndef OPENSSL_NO_DEPRECATED_3_0
 #  define HEADER_ERR_H
 # endif
 
-#include <OpenSSL/e_os2.h>
+# include <openssl/e_os2.h>
 
 # ifndef OPENSSL_NO_STDIO
 #  include <stdio.h>
 #  include <stdlib.h>
 # endif
 
-#include <OpenSSL/types.h>
-#include <OpenSSL/bio.h>
-#include <OpenSSL/lhash.h>
-#include <OpenSSL/cryptoerr_legacy.h>
+# include <openssl/types.h>
+# include <openssl/bio.h>
+# include <openssl/lhash.h>
+# include <openssl/cryptoerr_legacy.h>
 
 #ifdef  __cplusplus
 extern "C" {
@@ -372,7 +372,7 @@ typedef struct ERR_string_data_st {
 } ERR_STRING_DATA;
 
 DEFINE_LHASH_OF_INTERNAL(ERR_STRING_DATA);
-#define lh_ERR_STRING_DATA_new(hfn, cmp) ((LHASH_OF(ERR_STRING_DATA) *)OPENSSL_LH_set_thunks(OPENSSL_LH_new(ossl_check_ERR_STRING_DATA_lh_hashfunc_type(hfn), ossl_check_ERR_STRING_DATA_lh_compfunc_type(cmp)), lh_ERR_STRING_DATA_hash_thunk, lh_ERR_STRING_DATA_comp_thunk, lh_ERR_STRING_DATA_doall_thunk, lh_ERR_STRING_DATA_doall_arg_thunk))
+#define lh_ERR_STRING_DATA_new(hfn, cmp) ((LHASH_OF(ERR_STRING_DATA) *)OPENSSL_LH_new(ossl_check_ERR_STRING_DATA_lh_hashfunc_type(hfn), ossl_check_ERR_STRING_DATA_lh_compfunc_type(cmp)))
 #define lh_ERR_STRING_DATA_free(lh) OPENSSL_LH_free(ossl_check_ERR_STRING_DATA_lh_type(lh))
 #define lh_ERR_STRING_DATA_flush(lh) OPENSSL_LH_flush(ossl_check_ERR_STRING_DATA_lh_type(lh))
 #define lh_ERR_STRING_DATA_insert(lh, ptr) ((ERR_STRING_DATA *)OPENSSL_LH_insert(ossl_check_ERR_STRING_DATA_lh_type(lh), ossl_check_ERR_STRING_DATA_lh_plain_type(ptr)))
@@ -497,7 +497,6 @@ int ERR_set_mark(void);
 int ERR_pop_to_mark(void);
 int ERR_clear_last_mark(void);
 int ERR_count_to_mark(void);
-int ERR_pop(void);
 
 ERR_STATE *OSSL_ERR_STATE_new(void);
 void OSSL_ERR_STATE_save(ERR_STATE *es);

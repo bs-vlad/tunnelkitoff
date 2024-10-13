@@ -27,10 +27,10 @@ extern "C" {
  * OpenSSL was configured with the following options:
  */
 
-# ifndef OPENSSL_SYS_MacOSX
-#  define OPENSSL_SYS_MacOSX 1
+# ifndef OPENSSL_SYS_iOS
+#  define OPENSSL_SYS_iOS 1
 # endif
-# define OPENSSL_CONFIGURED_API 30300
+# define OPENSSL_CONFIGURED_API 30200
 # ifndef OPENSSL_RAND_SEED_OS
 #  define OPENSSL_RAND_SEED_OS
 # endif
@@ -66,6 +66,9 @@ extern "C" {
 # endif
 # ifndef OPENSSL_NO_CRYPTO_MDEBUG_BACKTRACE
 #  define OPENSSL_NO_CRYPTO_MDEBUG_BACKTRACE
+# endif
+# ifndef OPENSSL_NO_DEPRECATED
+#  define OPENSSL_NO_DEPRECATED
 # endif
 # ifndef OPENSSL_NO_DEVCRYPTOENG
 #  define OPENSSL_NO_DEVCRYPTOENG
@@ -112,11 +115,17 @@ extern "C" {
 # ifndef OPENSSL_NO_SCTP
 #  define OPENSSL_NO_SCTP
 # endif
+# ifndef OPENSSL_NO_SRP
+#  define OPENSSL_NO_SRP
+# endif
 # ifndef OPENSSL_NO_SSL3
 #  define OPENSSL_NO_SSL3
 # endif
 # ifndef OPENSSL_NO_SSL3_METHOD
 #  define OPENSSL_NO_SSL3_METHOD
+# endif
+# ifndef OPENSSL_NO_TESTS
+#  define OPENSSL_NO_TESTS
 # endif
 # ifndef OPENSSL_NO_TFO
 #  define OPENSSL_NO_TFO
@@ -170,7 +179,7 @@ extern "C" {
 #  undef THIRTY_TWO_BIT
 # endif
 
-# define RC4_INT unsigned int
+# define RC4_INT unsigned char
 
 # if defined(OPENSSL_NO_COMP) || (defined(OPENSSL_NO_BROTLI) && defined(OPENSSL_NO_ZSTD) && defined(OPENSSL_NO_ZLIB))
 #  define OPENSSL_NO_COMP_ALG

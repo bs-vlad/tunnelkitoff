@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  * Copyright 2005 Nokia. All rights reserved.
  *
@@ -13,14 +13,14 @@
 # define OPENSSL_TLS1_H
 # pragma once
 
-#include <OpenSSL/macros.h>
+# include <openssl/macros.h>
 # ifndef OPENSSL_NO_DEPRECATED_3_0
 #  define HEADER_TLS1_H
 # endif
 
-#include <OpenSSL/buffer.h>
-#include <OpenSSL/x509.h>
-#include <OpenSSL/prov_ssl.h>
+# include <openssl/buffer.h>
+# include <openssl/x509.h>
+# include <openssl/prov_ssl.h>
 
 #ifdef  __cplusplus
 extern "C" {
@@ -231,8 +231,6 @@ extern "C" {
 # define TLSEXT_max_fragment_length_1024        2
 # define TLSEXT_max_fragment_length_2048        3
 # define TLSEXT_max_fragment_length_4096        4
-/* OpenSSL value for unset maximum fragment length extension */
-# define TLSEXT_max_fragment_length_UNSPECIFIED 255
 
 /*
  * TLS Certificate Type (for RFC7250)

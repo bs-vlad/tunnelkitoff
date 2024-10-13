@@ -12,13 +12,13 @@
 # define OPENSSL_EC_H
 # pragma once
 
-#include <OpenSSL/macros.h>
+# include <openssl/macros.h>
 # ifndef OPENSSL_NO_DEPRECATED_3_0
 #  define HEADER_EC_H
 # endif
 
-#include <OpenSSL/opensslconf.h>
-#include <OpenSSL/types.h>
+# include <openssl/opensslconf.h>
+# include <openssl/types.h>
 
 # include <string.h>
 
@@ -92,18 +92,18 @@ const char *OSSL_EC_curve_nid2name(int nid);
 #  include <stdio.h>
 # endif
 # ifndef OPENSSL_NO_EC
-#include <OpenSSL/asn1.h>
-#include <OpenSSL/symhacks.h>
+#  include <openssl/asn1.h>
+#  include <openssl/symhacks.h>
 #  ifndef OPENSSL_NO_DEPRECATED_1_1_0
-#include <OpenSSL/bn.h>
+#   include <openssl/bn.h>
 #  endif
-#include <OpenSSL/ecerr.h>
+#  include <openssl/ecerr.h>
 
 #  ifndef OPENSSL_ECC_MAX_FIELD_BITS
 #   define OPENSSL_ECC_MAX_FIELD_BITS 661
 #  endif
 
-#include <OpenSSL/params.h>
+#  include <openssl/params.h>
 #  ifndef OPENSSL_NO_DEPRECATED_3_0
 typedef struct ec_method_st EC_METHOD;
 #  endif

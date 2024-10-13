@@ -1,5 +1,6 @@
 This is a library, a fork of the Apple TunnelKit library from https://github.com/passepartoutvpn/tunnelkit. MacOs, iOS/iPadOS, tvOS library that supports OpenVPN and WireGuard protocols.
 
+For OpenVPN, we use the OpenSSL library. https://developer.apple.com/documentation/xcode/distributing-binary-frameworks-as-swift-packages this is the guide for distributing binary frameworks as Swift packages (this is how we added OpenSSL to the project).
 When generating code, finding bugs, or optimizing Swift code, follow these guidelines:
 
 ## General Guidelines

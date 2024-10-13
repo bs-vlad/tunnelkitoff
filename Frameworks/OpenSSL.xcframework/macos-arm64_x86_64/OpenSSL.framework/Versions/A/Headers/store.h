@@ -11,15 +11,15 @@
 # define OPENSSL_STORE_H
 # pragma once
 
-#include <OpenSSL/macros.h>
+# include <openssl/macros.h>
 # ifndef OPENSSL_NO_DEPRECATED_3_0
 #  define HEADER_OSSL_STORE_H
 # endif
 
 # include <stdarg.h>
-#include <OpenSSL/types.h>
-#include <OpenSSL/pem.h>
-#include <OpenSSL/storeerr.h>
+# include <openssl/types.h>
+# include <openssl/pem.h>
+# include <openssl/storeerr.h>
 
 # ifdef  __cplusplus
 extern "C" {

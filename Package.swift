@@ -52,67 +52,57 @@ let package = Package(
                 "__TunnelKitUtils",
                 "CTunnelKitCore",
                 "SwiftyBeaver"
-            ]
-        ),
+            ]),
         .target(
             name: "TunnelKitManager",
             dependencies: [
                 "SwiftyBeaver"
-            ]
-        ),
+            ]),
         .target(
             name: "TunnelKitAppExtension",
             dependencies: [
                 "TunnelKitCore"
-            ]
-        ),
+            ]),
         .target(
             name: "TunnelKitOpenVPN",
             dependencies: [
                 "TunnelKitOpenVPNCore",
                 "TunnelKitOpenVPNManager"
-            ]
-        ),
+            ]),
         .target(
             name: "TunnelKitOpenVPNCore",
             dependencies: [
                 "TunnelKitCore",
                 "CTunnelKitOpenVPNCore",
                 "CTunnelKitOpenVPNProtocol"
-            ]
-        ),
+            ]),
         .target(
             name: "TunnelKitOpenVPNManager",
             dependencies: [
                 "TunnelKitManager",
                 "TunnelKitOpenVPNCore"
-            ]
-        ),
+            ]),
         .target(
             name: "TunnelKitOpenVPNProtocol",
             dependencies: [
                 "TunnelKitOpenVPNCore",
                 "CTunnelKitOpenVPNProtocol",
-                .target(name: "OpenSSL_Local")
-            ]
-        ),
+                "openssl"
+            ]),
         .target(
             name: "TunnelKitOpenVPNAppExtension",
             dependencies: [
                 "TunnelKitAppExtension",
                 "TunnelKitOpenVPNCore",
                 "TunnelKitOpenVPNManager",
-                "TunnelKitOpenVPNProtocol",
-                .target(name: "OpenSSL_Local")
-            ]
-        ),
+                "TunnelKitOpenVPNProtocol"
+            ]),
         .target(
             name: "TunnelKitWireGuard",
             dependencies: [
                 "TunnelKitWireGuardCore",
                 "TunnelKitWireGuardManager"
-            ]
-        ),
+            ]),
         .target(
             name: "TunnelKitWireGuardCore",
             dependencies: [
@@ -120,22 +110,19 @@ let package = Package(
                 "TunnelKitCore",
                 .product(name: "WireGuardKit", package: "wireguard-apple"),
                 "SwiftyBeaver"
-            ]
-        ),
+            ]),
         .target(
             name: "TunnelKitWireGuardManager",
             dependencies: [
                 "TunnelKitManager",
                 "TunnelKitWireGuardCore"
-            ]
-        ),
+            ]),
         .target(
             name: "TunnelKitWireGuardAppExtension",
             dependencies: [
                 "TunnelKitWireGuardCore",
                 "TunnelKitWireGuardManager"
-            ]
-        ),
+            ]),
         .target(
             name: "TunnelKitLZO",
             dependencies: [],
@@ -144,41 +131,27 @@ let package = Package(
                 "lib/Makefile",
                 "lib/README.LZO",
                 "lib/testmini.c"
-            ]
-        ),
+            ]),
+        .binaryTarget(
+                    name: "openssl",
+                    path: "./Frameworks/openssl.xcframework"
+                ),
         .target(
             name: "CTunnelKitCore",
-            dependencies: []
-        ),
+            dependencies: []),
         .target(
             name: "CTunnelKitOpenVPNCore",
-            dependencies: []
-        ),
+            dependencies: []),
         .target(
             name: "CTunnelKitOpenVPNProtocol",
             dependencies: [
                 "CTunnelKitCore",
                 "CTunnelKitOpenVPNCore",
-                .target(name: "OpenSSL_Local")
-            ]
-        ),
+                "openssl"
+            ]),
         .target(
             name: "__TunnelKitUtils",
-            dependencies: []
-        ),
-        
-        .target(
-            name: "OpenSSL_Local",
-            path: "./Frameworks/OpenSSL.xcframework",
-            publicHeadersPath: ".",
-            cSettings: [
-                .headerSearchPath(".")
-            ],
-            linkerSettings: [
-                .linkedFramework("OpenSSL")
-            ]
-        )
-,
+            dependencies: []),
         .testTarget(
             name: "TunnelKitCoreTests",
             dependencies: [
@@ -188,8 +161,7 @@ let package = Package(
                 "RandomTests.swift",
                 "RawPerformanceTests.swift",
                 "RoutingTests.swift"
-            ]
-        ),
+            ]),
         .testTarget(
             name: "TunnelKitOpenVPNTests",
             dependencies: [
@@ -203,14 +175,12 @@ let package = Package(
             ],
             resources: [
                 .process("Resources")
-            ]
-        ),
+            ]),
         .testTarget(
             name: "TunnelKitLZOTests",
             dependencies: [
                 "TunnelKitCore",
                 "TunnelKitLZO"
-            ]
-        )
+            ])
     ]
 )

@@ -11,6 +11,6 @@
 # define OPENSSL_KDFERR_H
 # pragma once
 
-#include <OpenSSL/cryptoerr_legacy.h>
+#include <openssl/cryptoerr_legacy.h>
 
 #endif /* !defined(OPENSSL_KDFERR_H) */

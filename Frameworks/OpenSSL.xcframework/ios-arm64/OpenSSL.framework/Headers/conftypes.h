@@ -12,7 +12,7 @@
 # pragma once
 
 #ifndef  OPENSSL_CONF_H
-#include <OpenSSL/conf.h>
+# include <openssl/conf.h>
 #endif
 
 /*

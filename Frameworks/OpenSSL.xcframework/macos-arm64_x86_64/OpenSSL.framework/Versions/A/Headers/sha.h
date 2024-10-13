@@ -11,12 +11,12 @@
 # define OPENSSL_SHA_H
 # pragma once
 
-#include <OpenSSL/macros.h>
+# include <openssl/macros.h>
 # ifndef OPENSSL_NO_DEPRECATED_3_0
 #  define HEADER_SHA_H
 # endif
 
-#include <OpenSSL/e_os2.h>
+# include <openssl/e_os2.h>
 # include <stddef.h>
 
 # ifdef  __cplusplus

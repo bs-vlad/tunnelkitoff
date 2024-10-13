@@ -11,7 +11,7 @@
 # define OPENSSL_PROVIDER_H
 # pragma once
 
-#include <OpenSSL/core.h>
+# include <openssl/core.h>
 
 # ifdef __cplusplus
 extern "C" {

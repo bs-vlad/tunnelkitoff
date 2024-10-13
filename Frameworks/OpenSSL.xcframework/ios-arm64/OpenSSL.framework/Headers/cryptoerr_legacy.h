@@ -18,8 +18,8 @@
 # define OPENSSL_CRYPTOERR_LEGACY_H
 # pragma once
 
-#include <OpenSSL/macros.h>
-#include <OpenSSL/symhacks.h>
+# include <openssl/macros.h>
+# include <openssl/symhacks.h>
 
 # ifdef  __cplusplus
 extern "C" {

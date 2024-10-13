@@ -11,7 +11,7 @@
 # define OPENSSL_EVP_H
 # pragma once
 
-#include <OpenSSL/macros.h>
+# include <openssl/macros.h>
 # ifndef OPENSSL_NO_DEPRECATED_3_0
 #  define HEADER_ENVELOPE_H
 # endif
@@ -22,14 +22,14 @@
 #  include <stdio.h>
 # endif
 
-#include <OpenSSL/opensslconf.h>
-#include <OpenSSL/types.h>
-#include <OpenSSL/core.h>
-#include <OpenSSL/core_dispatch.h>
-#include <OpenSSL/symhacks.h>
-#include <OpenSSL/bio.h>
-#include <OpenSSL/evperr.h>
-#include <OpenSSL/params.h>
+# include <openssl/opensslconf.h>
+# include <openssl/types.h>
+# include <openssl/core.h>
+# include <openssl/core_dispatch.h>
+# include <openssl/symhacks.h>
+# include <openssl/bio.h>
+# include <openssl/evperr.h>
+# include <openssl/params.h>
 
 # define EVP_MAX_MD_SIZE                 64/* longest known is SHA512 */
 # define EVP_MAX_KEY_LENGTH              64
@@ -41,7 +41,7 @@
 /* Default PKCS#5 iteration count */
 # define PKCS5_DEFAULT_ITER              2048
 
-#include <OpenSSL/objects.h>
+# include <openssl/objects.h>
 
 # ifndef OPENSSL_NO_DEPRECATED_3_0
 #  define EVP_PK_RSA      0x0001
@@ -729,10 +729,8 @@ __owur int EVP_MD_CTX_copy(EVP_MD_CTX *out, const EVP_MD_CTX *in);
 __owur int EVP_DigestInit(EVP_MD_CTX *ctx, const EVP_MD *type);
 __owur int EVP_DigestFinal(EVP_MD_CTX *ctx, unsigned char *md,
                            unsigned int *s);
-__owur int EVP_DigestFinalXOF(EVP_MD_CTX *ctx, unsigned char *out,
-                              size_t outlen);
-__owur int EVP_DigestSqueeze(EVP_MD_CTX *ctx, unsigned char *out,
-                             size_t outlen);
+__owur int EVP_DigestFinalXOF(EVP_MD_CTX *ctx, unsigned char *md,
+                              size_t len);
 
 __owur EVP_MD *EVP_MD_fetch(OSSL_LIB_CTX *ctx, const char *algorithm,
                             const char *properties);

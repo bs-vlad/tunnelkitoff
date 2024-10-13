@@ -11,15 +11,15 @@
 # define OPENSSL_RIPEMD_H
 # pragma once
 
-#include <OpenSSL/macros.h>
+# include <openssl/macros.h>
 # ifndef OPENSSL_NO_DEPRECATED_3_0
 #  define HEADER_RIPEMD_H
 # endif
 
-#include <OpenSSL/opensslconf.h>
+# include <openssl/opensslconf.h>
 
 # ifndef OPENSSL_NO_RMD160
-#include <OpenSSL/e_os2.h>
+#  include <openssl/e_os2.h>
 #  include <stddef.h>
 
 #  define RIPEMD160_DIGEST_LENGTH 20

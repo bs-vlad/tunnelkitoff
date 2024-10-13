@@ -11,17 +11,17 @@
 # define OPENSSL_PEM_H
 # pragma once
 
-#include <OpenSSL/macros.h>
+# include <openssl/macros.h>
 # ifndef OPENSSL_NO_DEPRECATED_3_0
 #  define HEADER_PEM_H
 # endif
 
-#include <OpenSSL/e_os2.h>
-#include <OpenSSL/bio.h>
-#include <OpenSSL/safestack.h>
-#include <OpenSSL/evp.h>
-#include <OpenSSL/x509.h>
-#include <OpenSSL/pemerr.h>
+# include <openssl/e_os2.h>
+# include <openssl/bio.h>
+# include <openssl/safestack.h>
+# include <openssl/evp.h>
+# include <openssl/x509.h>
+# include <openssl/pemerr.h>
 # ifndef OPENSSL_NO_STDIO
 #  include <stdio.h>
 # endif
@@ -435,7 +435,7 @@ int PEM_def_callback(char *buf, int num, int rwflag, void *userdata);
 void PEM_proc_type(char *buf, int type);
 void PEM_dek_info(char *buf, const char *type, int len, const char *str);
 
-#include <OpenSSL/symhacks.h>
+# include <openssl/symhacks.h>
 
 DECLARE_PEM_rw(X509, X509)
 DECLARE_PEM_rw(X509_AUX, X509)
