@@ -168,8 +168,9 @@ let package = Package(
         ),
         // Defining the OpenSSL framework for all platforms (macOS, iOS, tvOS)
         .target(
-            name: "OpenSSL_Local",  // Renamed to avoid conflict
+            name: "OpenSSL_Local",  // Renamed to avoid conflict with 'openssl-package'
             path: "./Frameworks/OpenSSL.xcframework",
+      
             publicHeadersPath: {
                 #if os(iOS)
                 return "./ios-arm64/OpenSSL.framework/Headers"
@@ -177,10 +178,13 @@ let package = Package(
                 return "./tvos-arm64/OpenSSL.framework/Headers"
                 #elseif os(macOS)
                 return "./macos-arm64_x86_64/OpenSSL.framework/Headers"
+                #elseif os(watchOS)
+                return "./watchos-arm64_arm64_32_armv7k/OpenSSL.framework/Headers"
+            
                 #endif
             }(),
             linkerSettings: [
-                .linkedFramework("OpenSSL", .when(platforms: [.iOS, .macOS, .tvOS]))
+                .linkedFramework("OpenSSL", .when(platforms: [.iOS, .macOS, .tvOS, .watchOS]))
             ]
         )
 ,
