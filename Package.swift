@@ -1,6 +1,4 @@
 // swift-tools-version:5.9
-// The swift-tools-version declares the minimum version of Swift required to build this package.
-
 import PackageDescription
 
 let package = Package(
@@ -11,7 +9,6 @@ let package = Package(
         .tvOS(.v17)
     ],
     products: [
-        // Products define the executables and libraries a package produces, and make them visible to other packages.
         .library(
             name: "TunnelKit",
             targets: ["TunnelKit"]
@@ -38,15 +35,8 @@ let package = Package(
         )
     ],
     dependencies: [
-        // Dependencies declare other packages that this package depends on.
-        // .package(url: /* package url */, from: "1.0.0"),
         .package(url: "https://github.com/SwiftyBeaver/SwiftyBeaver", from: "1.9.0"),
-        .package(url: "https://github.com/krzyzanowskim/OpenSSL-Package.git", from: "3.3.2000"),
-//        .package(url: "https://git.zx2c4.com/wireguard-apple", .exact: Version("1.0.15-26")),
-//        .package(url: "https://github.com/passepartoutvpn/wireguard-apple", exact: Version("1.0.17")),
         .package(url: "https://github.com/passepartoutvpn/wireguard-apple", revision: "b79f0f150356d8200a64922ecf041dd020140aa0")
-//        .package(url: "https://github.com/passepartoutvpn/wireguard-apple", branch: "develop")
-//        .package(name: "WireGuardKit", path: "../wireguard-apple")
     ],
     targets: [
         .target(
@@ -103,7 +93,7 @@ let package = Package(
             dependencies: [
                 "TunnelKitOpenVPNCore",
                 "CTunnelKitOpenVPNProtocol",
-                .product(name: "OpenSSL", package: "OpenSSL-Package") // Ensure OpenSSL is referenced properly
+                .target(name: "OpenSSL") // Referencing the local OpenSSL target
             ]
         ),
         .target(
@@ -113,7 +103,7 @@ let package = Package(
                 "TunnelKitOpenVPNCore",
                 "TunnelKitOpenVPNManager",
                 "TunnelKitOpenVPNProtocol",
-                .product(name: "OpenSSL", package: "OpenSSL-Package")
+                .target(name: "OpenSSL") // Referencing the local OpenSSL target
             ]
         ),
         .target(
@@ -169,13 +159,35 @@ let package = Package(
             dependencies: [
                 "CTunnelKitCore",
                 "CTunnelKitOpenVPNCore",
-                .product(name: "OpenSSL", package: "OpenSSL-Package")
+                .target(name: "OpenSSL")
             ]
         ),
         .target(
             name: "__TunnelKitUtils",
             dependencies: []
         ),
+        // Defining the OpenSSL framework for all platforms (macOS, iOS, tvOS)
+        .target(
+            name: "OpenSSL",
+            path: "./Frameworks/OpenSSL.xcframework",
+            exclude: ["Info.plist"], // Exclude Info.plist if needed
+            resources: [
+                // Include the resources if any (optional)
+            ],
+            publicHeadersPath: {
+                #if os(iOS)
+                return "./ios-arm64/OpenSSL.framework/Headers"
+                #elseif os(tvOS)
+                return "./tvos-arm64/OpenSSL.framework/Headers"
+                #elseif os(macOS)
+                return "./macos-arm64_x86_64/OpenSSL.framework/Headers"
+                #endif
+            }(),
+            linkerSettings: [
+                .linkedFramework("OpenSSL", .when(platforms: [.iOS, .macOS, .tvOS]))
+            ]
+        )
+,
         .testTarget(
             name: "TunnelKitCoreTests",
             dependencies: [
@@ -208,7 +220,6 @@ let package = Package(
                 "TunnelKitCore",
                 "TunnelKitLZO"
             ]
-
         )
     ]
 )
