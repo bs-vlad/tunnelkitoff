@@ -93,7 +93,7 @@ let package = Package(
             dependencies: [
                 "TunnelKitOpenVPNCore",
                 "CTunnelKitOpenVPNProtocol",
-                .target(name: "OpenSSL") // Referencing the local OpenSSL target
+                .target(name: "OpenSSL_Local")
             ]
         ),
         .target(
@@ -103,7 +103,7 @@ let package = Package(
                 "TunnelKitOpenVPNCore",
                 "TunnelKitOpenVPNManager",
                 "TunnelKitOpenVPNProtocol",
-                .target(name: "OpenSSL") // Referencing the local OpenSSL target
+                .target(name: "OpenSSL_Local")
             ]
         ),
         .target(
@@ -159,7 +159,7 @@ let package = Package(
             dependencies: [
                 "CTunnelKitCore",
                 "CTunnelKitOpenVPNCore",
-                .target(name: "OpenSSL")
+                .target(name: "OpenSSL_Local")
             ]
         ),
         .target(
@@ -168,12 +168,8 @@ let package = Package(
         ),
         // Defining the OpenSSL framework for all platforms (macOS, iOS, tvOS)
         .target(
-            name: "OpenSSL",
+            name: "OpenSSL_Local",  // Renamed to avoid conflict
             path: "./Frameworks/OpenSSL.xcframework",
-            exclude: ["Info.plist"], // Exclude Info.plist if needed
-            resources: [
-                // Include the resources if any (optional)
-            ],
             publicHeadersPath: {
                 #if os(iOS)
                 return "./ios-arm64/OpenSSL.framework/Headers"
