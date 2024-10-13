@@ -12,9 +12,9 @@
 # define OPENSSL_UIERR_H
 # pragma once
 
-# include <openssl/opensslconf.h>
-# include <openssl/symhacks.h>
-# include <openssl/cryptoerr_legacy.h>
+#include <OpenSSL/opensslconf.h>
+#include <OpenSSL/symhacks.h>
+#include <OpenSSL/cryptoerr_legacy.h>
 
 
 

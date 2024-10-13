@@ -12,8 +12,8 @@
 # define OPENSSL_PARAM_BUILD_H
 # pragma once
 
-# include <openssl/params.h>
-# include <openssl/types.h>
+#include <OpenSSL/params.h>
+#include <OpenSSL/types.h>
 
 # ifdef __cplusplus
 extern "C" {

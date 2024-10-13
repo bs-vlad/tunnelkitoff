@@ -11,18 +11,18 @@
 # define OPENSSL_DTLS1_H
 # pragma once
 
-# include <openssl/macros.h>
+#include <OpenSSL/macros.h>
 # ifndef OPENSSL_NO_DEPRECATED_3_0
 #  define HEADER_DTLS1_H
 # endif
 
-# include <openssl/prov_ssl.h>
+#include <OpenSSL/prov_ssl.h>
 
 #ifdef  __cplusplus
 extern "C" {
 #endif
 
-#include <openssl/opensslconf.h>
+#include <OpenSSL/opensslconf.h>
 
 /* DTLS*_VERSION constants are defined in prov_ssl.h */
 # ifndef OPENSSL_NO_DEPRECATED_3_0

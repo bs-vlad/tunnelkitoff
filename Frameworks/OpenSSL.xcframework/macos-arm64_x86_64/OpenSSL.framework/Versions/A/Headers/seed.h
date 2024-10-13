@@ -36,16 +36,16 @@
 # define OPENSSL_SEED_H
 # pragma once
 
-# include <openssl/macros.h>
+#include <OpenSSL/macros.h>
 # ifndef OPENSSL_NO_DEPRECATED_3_0
 #  define HEADER_SEED_H
 # endif
 
-# include <openssl/opensslconf.h>
+#include <OpenSSL/opensslconf.h>
 
 # ifndef OPENSSL_NO_SEED
-#  include <openssl/e_os2.h>
-#  include <openssl/crypto.h>
+#include <OpenSSL/e_os2.h>
+#include <OpenSSL/crypto.h>
 #  include <sys/types.h>
 
 #  ifdef  __cplusplus

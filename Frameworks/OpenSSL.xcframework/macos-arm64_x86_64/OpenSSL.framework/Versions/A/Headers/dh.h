@@ -11,13 +11,13 @@
 # define OPENSSL_DH_H
 # pragma once
 
-# include <openssl/macros.h>
+#include <OpenSSL/macros.h>
 # ifndef OPENSSL_NO_DEPRECATED_3_0
 #  define HEADER_DH_H
 # endif
 
-# include <openssl/opensslconf.h>
-# include <openssl/types.h>
+#include <OpenSSL/opensslconf.h>
+#include <OpenSSL/types.h>
 
 # ifdef  __cplusplus
 extern "C" {
@@ -25,7 +25,11 @@ extern "C" {
 
 #include <stdlib.h>
 
-/* DH parameter generation types used by EVP_PKEY_CTX_set_dh_paramgen_type() */
+/*
+ * DH parameter generation types used by EVP_PKEY_CTX_set_dh_paramgen_type()
+ * Note that additions/changes to this set of values requires corresponding
+ * adjustments to range checks in dh_gen()
+ */
 # define DH_PARAMGEN_TYPE_GENERATOR     0   /* Use a safe prime generator */
 # define DH_PARAMGEN_TYPE_FIPS_186_2    1   /* Use FIPS186-2 standard */
 # define DH_PARAMGEN_TYPE_FIPS_186_4    2   /* Use FIPS186-4 standard */
@@ -83,13 +87,13 @@ int EVP_PKEY_CTX_get0_dh_kdf_ukm(EVP_PKEY_CTX *ctx, unsigned char **ukm);
 #  include <stdio.h>
 # endif
 # ifndef OPENSSL_NO_DH
-#  include <openssl/e_os2.h>
-#  include <openssl/bio.h>
-#  include <openssl/asn1.h>
+#include <OpenSSL/e_os2.h>
+#include <OpenSSL/bio.h>
+#include <OpenSSL/asn1.h>
 #  ifndef OPENSSL_NO_DEPRECATED_1_1_0
-#   include <openssl/bn.h>
+#include <OpenSSL/bn.h>
 #  endif
-#  include <openssl/dherr.h>
+#include <OpenSSL/dherr.h>
 
 #  ifndef OPENSSL_DH_MAX_MODULUS_BITS
 #   define OPENSSL_DH_MAX_MODULUS_BITS        10000

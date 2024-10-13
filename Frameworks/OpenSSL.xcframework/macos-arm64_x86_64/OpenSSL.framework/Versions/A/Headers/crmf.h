@@ -19,17 +19,17 @@
 #ifndef OPENSSL_CRMF_H
 # define OPENSSL_CRMF_H
 
-# include <openssl/opensslconf.h>
+#include <OpenSSL/opensslconf.h>
 
 # ifndef OPENSSL_NO_CRMF
-#  include <openssl/opensslv.h>
-#  include <openssl/safestack.h>
-#  include <openssl/crmferr.h>
-#  include <openssl/x509v3.h> /* for GENERAL_NAME etc. */
+#include <OpenSSL/opensslv.h>
+#include <OpenSSL/safestack.h>
+#include <OpenSSL/crmferr.h>
+#include <OpenSSL/x509v3.h> /* for GENERAL_NAME etc. */
 
 /* explicit #includes not strictly needed since implied by the above: */
-#  include <openssl/types.h>
-#  include <openssl/x509.h>
+#include <OpenSSL/types.h>
+#include <OpenSSL/x509.h>
 
 #  ifdef __cplusplus
 extern "C" {

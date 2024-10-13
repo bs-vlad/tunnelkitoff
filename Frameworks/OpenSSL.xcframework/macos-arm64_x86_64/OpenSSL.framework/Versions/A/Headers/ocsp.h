@@ -16,14 +16,14 @@
 # define OPENSSL_OCSP_H
 # pragma once
 
-# include <openssl/macros.h>
+#include <OpenSSL/macros.h>
 # ifndef OPENSSL_NO_DEPRECATED_3_0
 #  define HEADER_OCSP_H
 # endif
 
-# include <openssl/opensslconf.h>
-# include <openssl/http.h>
-# include <openssl/asn1.h>
+#include <OpenSSL/opensslconf.h>
+#include <OpenSSL/http.h>
+#include <OpenSSL/asn1.h>
 
 /*
  * These definitions are outside the OPENSSL_NO_OCSP guard because although for
@@ -59,10 +59,10 @@
 
 # ifndef OPENSSL_NO_OCSP
 
-#  include <openssl/x509.h>
-#  include <openssl/x509v3.h>
-#  include <openssl/safestack.h>
-#  include <openssl/ocsperr.h>
+#include <OpenSSL/x509.h>
+#include <OpenSSL/x509v3.h>
+#include <OpenSSL/safestack.h>
+#include <OpenSSL/ocsperr.h>
 
 #  ifdef __cplusplus
 extern "C" {

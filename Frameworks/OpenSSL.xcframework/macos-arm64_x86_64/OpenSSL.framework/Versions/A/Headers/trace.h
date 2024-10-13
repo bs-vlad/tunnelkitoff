@@ -13,7 +13,7 @@
 
 # include <stdarg.h>
 
-# include <openssl/bio.h>
+#include <OpenSSL/bio.h>
 
 # ifdef  __cplusplus
 extern "C" {

@@ -11,16 +11,16 @@
 # define OPENSSL_MDC2_H
 # pragma once
 
-# include <openssl/macros.h>
+#include <OpenSSL/macros.h>
 # ifndef OPENSSL_NO_DEPRECATED_3_0
 #  define HEADER_MDC2_H
 # endif
 
-# include <openssl/opensslconf.h>
+#include <OpenSSL/opensslconf.h>
 
 # ifndef OPENSSL_NO_MDC2
 #  include <stdlib.h>
-#  include <openssl/des.h>
+#include <OpenSSL/des.h>
 #  ifdef  __cplusplus
 extern "C" {
 #  endif

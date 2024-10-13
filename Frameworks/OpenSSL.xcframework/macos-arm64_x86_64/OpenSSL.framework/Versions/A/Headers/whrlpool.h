@@ -11,15 +11,15 @@
 # define OPENSSL_WHRLPOOL_H
 # pragma once
 
-# include <openssl/macros.h>
+#include <OpenSSL/macros.h>
 # ifndef OPENSSL_NO_DEPRECATED_3_0
 #  define HEADER_WHRLPOOL_H
 # endif
 
-# include <openssl/opensslconf.h>
+#include <OpenSSL/opensslconf.h>
 
 # ifndef OPENSSL_NO_WHIRLPOOL
-#  include <openssl/e_os2.h>
+#include <OpenSSL/e_os2.h>
 #  include <stddef.h>
 #  ifdef __cplusplus
 extern "C" {

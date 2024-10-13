@@ -17,29 +17,29 @@
 # define OPENSSL_X509_H
 # pragma once
 
-# include <openssl/macros.h>
+#include <OpenSSL/macros.h>
 # ifndef OPENSSL_NO_DEPRECATED_3_0
 #  define HEADER_X509_H
 # endif
 
-# include <openssl/e_os2.h>
-# include <openssl/types.h>
-# include <openssl/symhacks.h>
-# include <openssl/buffer.h>
-# include <openssl/evp.h>
-# include <openssl/bio.h>
-# include <openssl/asn1.h>
-# include <openssl/safestack.h>
-# include <openssl/ec.h>
+#include <OpenSSL/e_os2.h>
+#include <OpenSSL/types.h>
+#include <OpenSSL/symhacks.h>
+#include <OpenSSL/buffer.h>
+#include <OpenSSL/evp.h>
+#include <OpenSSL/bio.h>
+#include <OpenSSL/asn1.h>
+#include <OpenSSL/safestack.h>
+#include <OpenSSL/ec.h>
 
 # ifndef OPENSSL_NO_DEPRECATED_1_1_0
-#  include <openssl/rsa.h>
-#  include <openssl/dsa.h>
-#  include <openssl/dh.h>
+#include <OpenSSL/rsa.h>
+#include <OpenSSL/dsa.h>
+#include <OpenSSL/dh.h>
 # endif
 
-# include <openssl/sha.h>
-# include <openssl/x509err.h>
+#include <OpenSSL/sha.h>
+#include <OpenSSL/x509err.h>
 # ifndef OPENSSL_NO_STDIO
 #  include <stdio.h>
 # endif
@@ -479,8 +479,8 @@ typedef struct SCRYPT_PARAMS_st {
 }
 #endif
 
-# include <openssl/x509_vfy.h>
-# include <openssl/pkcs7.h>
+#include <OpenSSL/x509_vfy.h>
+#include <OpenSSL/pkcs7.h>
 
 #ifdef  __cplusplus
 extern "C" {
@@ -555,7 +555,7 @@ int X509_NAME_digest(const X509_NAME *data, const EVP_MD *type,
 X509 *X509_load_http(const char *url, BIO *bio, BIO *rbio, int timeout);
 X509_CRL *X509_CRL_load_http(const char *url, BIO *bio, BIO *rbio, int timeout);
 # ifndef OPENSSL_NO_DEPRECATED_3_0
-#  include <openssl/http.h> /* OSSL_HTTP_REQ_CTX_nbio_d2i */
+#include <OpenSSL/http.h> /* OSSL_HTTP_REQ_CTX_nbio_d2i */
 #  define X509_http_nbio(rctx, pcert) \
       OSSL_HTTP_REQ_CTX_nbio_d2i(rctx, pcert, ASN1_ITEM_rptr(X509))
 #  define X509_CRL_http_nbio(rctx, pcrl) \
