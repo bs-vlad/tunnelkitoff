@@ -166,21 +166,16 @@ let package = Package(
             name: "__TunnelKitUtils",
             dependencies: []
         ),
-        // Defining the OpenSSL framework for all platforms (macOS, iOS, tvOS)
+        
         .target(
-            name: "OpenSSL_Local",  // Renamed to avoid conflict
+            name: "OpenSSL_Local",
             path: "./Frameworks/OpenSSL.xcframework",
-            publicHeadersPath: {
-                #if os(iOS)
-                return "./ios-arm64/OpenSSL.framework/Headers"
-                #elseif os(tvOS)
-                return "./tvos-arm64/OpenSSL.framework/Headers"
-                #elseif os(macOS)
-                return "./macos-arm64_x86_64/OpenSSL.framework/Headers"
-                #endif
-            }(),
+            publicHeadersPath: ".",
+            cSettings: [
+                .headerSearchPath(".")
+            ],
             linkerSettings: [
-                .linkedFramework("OpenSSL", .when(platforms: [.iOS, .macOS, .tvOS]))
+                .linkedFramework("OpenSSL")
             ]
         )
 ,
