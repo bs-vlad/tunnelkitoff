@@ -1,5 +1,7 @@
 import Foundation
 
+///Optimized
+
 /// VPN notifications.
 public enum VPNNotification {
     public static let didReinstall = Notification.Name("VPNDidReinstall")
