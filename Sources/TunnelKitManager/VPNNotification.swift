@@ -1,93 +1,49 @@
-
 import Foundation
 
 /// VPN notifications.
-public struct VPNNotification {
-
-    /// The VPN did reinstall.
+public enum VPNNotification {
     public static let didReinstall = Notification.Name("VPNDidReinstall")
-
-    /// The VPN did change its status.
     public static let didChangeStatus = Notification.Name("VPNDidChangeStatus")
-
-    /// The VPN triggered some error.
     public static let didFail = Notification.Name("VPNDidFail")
 }
 
 extension Notification {
-
-    /// The VPN bundle identifier.
+    private enum UserInfoKey: String {
+        case bundleIdentifier = "BundleIdentifier"
+        case isEnabled = "IsEnabled"
+        case status = "Status"
+        case error = "Error"
+        case connectionDate = "ConnectionDate"
+    }
+    
     public var vpnBundleIdentifier: String? {
-        get {
-            guard let vpnBundleIdentifier = userInfo?["BundleIdentifier"] as? String else {
-                fatalError("Notification has no vpnBundleIdentifier")
-            }
-            return vpnBundleIdentifier
-        }
-        set {
-            var newInfo = userInfo ?? [:]
-            newInfo["BundleIdentifier"] = newValue
-            userInfo = newInfo
-        }
+        get { userInfo?[UserInfoKey.bundleIdentifier.rawValue] as? String }
+        set { setUserInfoValue(newValue, for: .bundleIdentifier) }
     }
 
-    /// The current VPN enabled state.
-    public var vpnIsEnabled: Bool {
-        get {
-            guard let vpnIsEnabled = userInfo?["IsEnabled"] as? Bool else {
-                fatalError("Notification has no vpnIsEnabled")
-            }
-            return vpnIsEnabled
-        }
-        set {
-            var newInfo = userInfo ?? [:]
-            newInfo["IsEnabled"] = newValue
-            userInfo = newInfo
-        }
+    public var vpnIsEnabled: Bool? {
+        get { userInfo?[UserInfoKey.isEnabled.rawValue] as? Bool }
+        set { setUserInfoValue(newValue, for: .isEnabled) }
     }
 
-    /// The current VPN status.
-    public var vpnStatus: VPNStatus {
-        get {
-            guard let vpnStatus = userInfo?["Status"] as? VPNStatus else {
-                fatalError("Notification has no vpnStatus")
-            }
-            return vpnStatus
-        }
-        set {
-            var newInfo = userInfo ?? [:]
-            newInfo["Status"] = newValue
-            userInfo = newInfo
-        }
+    public var vpnStatus: VPNStatus? {
+        get { userInfo?[UserInfoKey.status.rawValue] as? VPNStatus }
+        set { setUserInfoValue(newValue, for: .status) }
     }
 
-    /// The triggered VPN error.
-    public var vpnError: Error {
-        get {
-            guard let vpnError = userInfo?["Error"] as? Error else {
-                fatalError("Notification has no vpnError")
-            }
-            return vpnError
-        }
-        set {
-            var newInfo = userInfo ?? [:]
-            newInfo["Error"] = newValue
-            userInfo = newInfo
-        }
+    public var vpnError: Error? {
+        get { userInfo?[UserInfoKey.error.rawValue] as? Error }
+        set { setUserInfoValue(newValue, for: .error) }
     }
 
-    /// The current VPN connection date.
     public var connectionDate: Date? {
-        get {
-            guard let date = userInfo?["ConnectionDate"] as? Date else {
-                fatalError("Notification has no connectionDate")
-            }
-            return date
-        }
-        set {
-            var newInfo = userInfo ?? [:]
-            newInfo["ConnectionDate"] = newValue
-            userInfo = newInfo
-        }
+        get { userInfo?[UserInfoKey.connectionDate.rawValue] as? Date }
+        set { setUserInfoValue(newValue, for: .connectionDate) }
+    }
+
+    private mutating func setUserInfoValue<T>(_ value: T?, for key: UserInfoKey) {
+        var newInfo = userInfo ?? [:]
+        newInfo[key.rawValue] = value
+        userInfo = newInfo
     }
 }

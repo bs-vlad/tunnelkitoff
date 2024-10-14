@@ -100,7 +100,7 @@ public class NetworkExtensionVPN: VPN {
         }
     }
 
-//   m.connection.connectedDate
+///   m.connection.connectedDate
     public func uninstall() async {
         guard let managers = try? await NETunnelProviderManager.loadAllFromPreferences() else {
             return
