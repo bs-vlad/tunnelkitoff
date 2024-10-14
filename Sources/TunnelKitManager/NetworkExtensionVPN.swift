@@ -212,38 +212,44 @@ public class NetworkExtensionVPN: VPN {
     }
 
     private func notifyReinstall(_ manager: NETunnelProviderManager) {
-        guard let bundleId = manager.tunnelBundleIdentifier else {
-            return
-        }
-        log.debug("VPN did reinstall (\(bundleId)): isEnabled=\(manager.isEnabled)")
-        var notification = Notification(name: VPNNotification.didReinstall)
-        notification.vpnBundleIdentifier = bundleId
-        notification.vpnIsEnabled = manager.isEnabled
-        NotificationCenter.default.post(notification)
+        notify(type: .reinstall, manager: manager)
     }
 
     private func notifyStatus(_ connection: NETunnelProviderSession) {
-        guard let _ = connection.manager.localizedDescription else {
-            log.verbose("Ignoring VPN notification from bogus manager")
-            return
-        }
-        guard let bundleId = connection.manager.tunnelBundleIdentifier else {
-            return
-        }
-        log.debug("VPN status did change (\(bundleId)): isEnabled=\(connection.manager.isEnabled), status=\(connection.status.rawValue)")
-        var notification = Notification(name: VPNNotification.didChangeStatus)
-        notification.vpnBundleIdentifier = bundleId
-        notification.vpnIsEnabled = connection.manager.isEnabled
-        notification.vpnStatus = connection.status.wrappedStatus
-        notification.connectionDate = connection.connectedDate
-        NotificationCenter.default.post(notification)
+        notify(type: .statusChange, manager: nil, connection: connection)
     }
 
     private func notifyInstallError(_ error: Error) {
-        log.error("VPN installation failed: \(error))")
-        var notification = Notification(name: VPNNotification.didFail)
-        notification.vpnError = error
-        notification.vpnIsEnabled = false
+        notify(type: .installError, manager: nil, error: error)
+    }
+
+    private func notify(type: VPNNotificationType, manager: NETunnelProviderManager?, connection: NETunnelProviderSession? = nil, error: Error? = nil) {
+        guard let bundleId = manager?.tunnelBundleIdentifier ?? connection?.manager.tunnelBundleIdentifier else {
+            return
+        }
+
+        var notification = Notification(name: type.notificationName)
+        notification.vpnBundleIdentifier = bundleId
+        notification.vpnIsEnabled = manager?.isEnabled ?? connection?.manager.isEnabled ?? false
+
+        switch type {
+        case .reinstall:
+            log.debug("VPN did reinstall (\(bundleId)): isEnabled=\(notification.vpnIsEnabled ?? false ? "true" : "false")")
+
+        case .statusChange:
+            guard let connection = connection, connection.manager.localizedDescription != nil else {
+                log.verbose("Ignoring VPN notification from bogus manager")
+                return
+            }
+            log.debug("VPN status did change (\(bundleId)): isEnabled=\(notification.vpnIsEnabled ?? false ? "true" : "false"), status=\(connection.status.rawValue)")
+            notification.vpnStatus = connection.status.wrappedStatus
+            notification.connectionDate = connection.connectedDate
+
+        case .installError:
+            log.error("VPN installation failed: \(error?.localizedDescription ?? "Unknown error")")
+            notification.vpnError = error
+        }
+
         NotificationCenter.default.post(notification)
     }
 }
@@ -279,6 +285,20 @@ private extension NEVPNStatus {
 
         @unknown default:
             return .disconnected
+        }
+    }
+}
+
+private enum VPNNotificationType {
+    case reinstall
+    case statusChange
+    case installError
+
+    var notificationName: Notification.Name {
+        switch self {
+        case .reinstall: return VPNNotification.didReinstall
+        case .statusChange: return VPNNotification.didChangeStatus
+        case .installError: return VPNNotification.didFail
         }
     }
 }
