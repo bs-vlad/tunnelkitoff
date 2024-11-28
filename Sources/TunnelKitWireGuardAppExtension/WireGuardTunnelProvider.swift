@@ -8,6 +8,9 @@ import SwiftyBeaver
 import Foundation
 import NetworkExtension
 import os
+import TunnelKitLogging
+
+private let log = TKLogger.shared
 
 open class WireGuardTunnelProvider: NEPacketTunnelProvider {
     private var cfg: WireGuard.ProviderConfiguration!
@@ -22,7 +25,12 @@ open class WireGuardTunnelProvider: NEPacketTunnelProvider {
 
     private lazy var adapter: WireGuardAdapter = {
         return WireGuardAdapter(with: self) { logLevel, message in
-            wg_log(logLevel.osLogLevel, message: message)
+            switch logLevel {
+            case .verbose:
+                log.debug(message)
+            case .error:
+                log.error(message)
+            }
         }
     }()
 
@@ -60,7 +68,7 @@ open class WireGuardTunnelProvider: NEPacketTunnelProvider {
             guard let adapterError = adapterError else {
                 let interfaceName = self.adapter.interfaceName ?? "unknown"
 
-                wg_log(.info, message: "Tunnel interface is \(interfaceName)")
+                log.info("Tunnel interface is \(interfaceName)")
                 self.tunnelQueue.async {
                     self.tunnelIsStarted = true
                     self.refreshDataCount()
@@ -71,24 +79,24 @@ open class WireGuardTunnelProvider: NEPacketTunnelProvider {
 
             switch adapterError {
             case .cannotLocateTunnelFileDescriptor:
-                wg_log(.error, staticMessage: "Starting tunnel failed: could not determine file descriptor")
+                log.error("Starting tunnel failed: could not determine file descriptor")
                 self.cfg._appexSetLastError(.couldNotDetermineFileDescriptor)
                 completionHandler(TunnelKitWireGuardError.couldNotDetermineFileDescriptor)
 
             case .dnsResolution(let dnsErrors):
                 let hostnamesWithDnsResolutionFailure = dnsErrors.map(\.address)
                     .joined(separator: ", ")
-                wg_log(.error, message: "DNS resolution failed for the following hostnames: \(hostnamesWithDnsResolutionFailure)")
+                log.error("DNS resolution failed for the following hostnames: \(hostnamesWithDnsResolutionFailure)")
                 self.cfg._appexSetLastError(.dnsResolutionFailure)
                 completionHandler(TunnelKitWireGuardError.dnsResolutionFailure)
 
             case .setNetworkSettings(let error):
-                wg_log(.error, message: "Starting tunnel failed with setTunnelNetworkSettings returning \(error.localizedDescription)")
+                log.error("Starting tunnel failed with setTunnelNetworkSettings returning \(error.localizedDescription)")
                 self.cfg._appexSetLastError(.couldNotSetNetworkSettings)
                 completionHandler(TunnelKitWireGuardError.couldNotSetNetworkSettings)
 
             case .startWireGuardBackend(let errorCode):
-                wg_log(.error, message: "Starting tunnel failed with wgTurnOn returning \(errorCode)")
+                log.error("Starting tunnel failed with wgTurnOn returning \(errorCode)")
                 self.cfg._appexSetLastError(.couldNotStartBackend)
                 completionHandler(TunnelKitWireGuardError.couldNotStartBackend)
 
@@ -100,7 +108,7 @@ open class WireGuardTunnelProvider: NEPacketTunnelProvider {
     }
 
     open override func stopTunnel(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
-        wg_log(.info, staticMessage: "Stopping tunnel")
+        log.info("Stopping tunnel")
 
         adapter.stop { [weak self] error in
 
@@ -114,7 +122,7 @@ open class WireGuardTunnelProvider: NEPacketTunnelProvider {
                 self.cfg._appexSetLastError(nil)
                 self.tunnelIsStarted = false
                 if let error = error {
-                    wg_log(.error, message: "Failed to stop WireGuard adapter: \(error.localizedDescription)")
+                    log.error("Failed to stop WireGuard adapter: \(error.localizedDescription)")
                 }
                 completionHandler()
             }
@@ -122,9 +130,6 @@ open class WireGuardTunnelProvider: NEPacketTunnelProvider {
             // END: TunnelKit
 
             #if os(macOS)
-            // HACK: This is a filthy hack to work around Apple bug 32073323 (dup'd by us as 47526107).
-            // Remove it when they finally fix this upstream and the fix has been rolled out to
-            // sufficient quantities of users.
             exit(0)
             #endif
         }
@@ -177,7 +182,7 @@ open class WireGuardTunnelProvider: NEPacketTunnelProvider {
             case .success(let dataCount):
                 self.cfg._appexSetDataCount(dataCount)
             case .failure(let error):
-                wg_log(.error, message: "Failed to refresh data count \(error.localizedDescription)")
+                log.error("Failed to refresh data count \(error.localizedDescription)")
             }
         }
     }
@@ -197,14 +202,14 @@ private extension WireGuardTunnelProvider {
             console.useNSLog = true
             console.minLevel = logLevel
             console.format = logFormat
-            SwiftyBeaver.addDestination(console)
+            log.addDestination(console)
         }
 
         let file = FileDestination(logFileURL: cfg._appexDebugLogURL)
         file.minLevel = logLevel
         file.format = logFormat
         file.logFileMaxSize = 20000
-        SwiftyBeaver.addDestination(file)
+        log.addDestination(file)
 
         // store path for clients
         cfg._appexSetDebugLogPath()
@@ -219,16 +224,5 @@ private extension WireGuardTunnelProvider {
                 completiondHandler(.failure(StatsError.parseFailure))
             }
          }
-    }
-}
-
-extension WireGuardLogLevel {
-    var osLogLevel: OSLogType {
-        switch self {
-        case .verbose:
-            return .debug
-        case .error:
-            return .error
-        }
     }
 }

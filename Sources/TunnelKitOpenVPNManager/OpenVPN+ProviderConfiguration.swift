@@ -6,7 +6,6 @@ import TunnelKitOpenVPNCore
 import NetworkExtension
 import SwiftyBeaver
 import __TunnelKitUtils
-import TunnelKitWireGuardCore
 import TunnelKitLogging
 
 private let log = TKLogger.shared
