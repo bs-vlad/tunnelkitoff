@@ -3,6 +3,7 @@ import os.log
 import SwiftyBeaver
 
 public final class CustomLogger {
+    
     public static let shared = CustomLogger()
     private let log = SwiftyBeaver.self
 
