@@ -4,8 +4,9 @@ import NetworkExtension
 import TunnelKitCore
 import TunnelKitOpenVPNCore
 import SwiftyBeaver
+import TunnelKitLogging
 
-private let log = CustomLogger.self
+private let log = TKLogger.shared
 
 struct NetworkSettingsBuilder {
     let remoteAddress: String

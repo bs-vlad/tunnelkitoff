@@ -42,8 +42,9 @@ import SystemConfiguration.CaptiveNetwork
 import CoreWLAN
 #endif
 import SwiftyBeaver
+import TunnelKitLogging
 
-private let log = CustomLogger.self
+private let log = TKLogger.shared
 
 /// Observes changes in the current Wi-Fi network.
 public class InterfaceObserver: NSObject {

@@ -5,8 +5,9 @@ import TunnelKitCore
 import TunnelKitOpenVPNCore
 import CTunnelKitCore
 import CTunnelKitOpenVPNProtocol
+import TunnelKitLogging
 
-private let log = CustomLogger.self
+private let log = TKLogger.shared
 
 protocol ControlChannelSerializer {
     func reset()

@@ -1,4 +1,3 @@
-
 import NetworkExtension
 import SwiftyBeaver
 #if os(iOS)
@@ -14,9 +13,9 @@ import TunnelKitOpenVPNProtocol
 import TunnelKitAppExtension
 import CTunnelKitCore
 import __TunnelKitUtils
+import TunnelKitLogging
 
-private let log = CustomLogger.self
-
+private let log = TKLogger.shared
 /**
  Provides an all-in-one `NEPacketTunnelProvider` implementation for use in a
  Packet Tunnel Provider extension both on iOS and macOS.

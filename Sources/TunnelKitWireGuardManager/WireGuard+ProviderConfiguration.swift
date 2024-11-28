@@ -6,8 +6,9 @@ import TunnelKitWireGuardCore
 import WireGuardKit
 import SwiftyBeaver
 import __TunnelKitUtils
+import TunnelKitLogging
 
-private let log = CustomLogger.self
+private let log = TKLogger.shared
 
 extension WireGuard {
 

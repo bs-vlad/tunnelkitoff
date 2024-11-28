@@ -2,14 +2,18 @@ import Foundation
 import os.log
 import SwiftyBeaver
 
-public final class CustomLogger {
-    
-    private static let shared = CustomLogger()
+public final class TKLogger {
+
+    public static let shared = TKLogger()
     private let log = SwiftyBeaver.self
 
       private init() {
           let customDestination = CustomLogDestination()
           log.addDestination(customDestination)
+      }
+
+      public func addDestination(_ destination: BaseDestination) {
+          log.addDestination(destination)
       }
 
       public func debug(_ message: @autoclosure () -> Any,
@@ -66,3 +70,5 @@ public final class CustomLogger {
           }
       }
   }
+
+

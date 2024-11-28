@@ -2,8 +2,10 @@
 import Foundation
 import TunnelKitCore
 import SwiftyBeaver
+import TunnelKitLogging
+import TunnelKitLogging
 
-private let log = CustomLogger.self
+private let log = TKLogger.shared
 
 class ResolvedRemote: CustomStringConvertible {
     let originalEndpoint: Endpoint

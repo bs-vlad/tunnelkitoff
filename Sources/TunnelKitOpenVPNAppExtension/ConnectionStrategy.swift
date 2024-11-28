@@ -6,12 +6,12 @@ import TunnelKitCore
 import TunnelKitAppExtension
 import TunnelKitOpenVPNCore
 import TunnelKitOpenVPNManager
+import TunnelKitLogging
 
-private let log = CustomLogger.self
+private let log = TKLogger.shared
 
 class ConnectionStrategy {
     private var remotes: [ResolvedRemote]
-
     private var currentRemoteIndex: Int
 
     var currentRemote: ResolvedRemote? {

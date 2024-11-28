@@ -32,6 +32,10 @@ let package = Package(
         .library(
             name: "TunnelKitLZO",
             targets: ["TunnelKitLZO"]
+        ),
+        .library(
+            name: "TunnelKitLogging",
+            targets: ["TunnelKitLogging"]
         )
     ],
     dependencies: [
@@ -56,12 +60,15 @@ let package = Package(
         .target(
             name: "TunnelKitManager",
             dependencies: [
+                "TunnelKitWireGuardCore",
+                "TunnelKitLogging",
                 "SwiftyBeaver"
             ]),
         .target(
             name: "TunnelKitAppExtension",
             dependencies: [
-                "TunnelKitCore"
+                "TunnelKitCore",
+                "TunnelKitLogging"
             ]),
         .target(
             name: "TunnelKitOpenVPN",
@@ -74,7 +81,8 @@ let package = Package(
             dependencies: [
                 "TunnelKitCore",
                 "CTunnelKitOpenVPNCore",
-                "CTunnelKitOpenVPNProtocol"
+                "CTunnelKitOpenVPNProtocol",
+                "TunnelKitLogging"
             ]),
         .target(
             name: "TunnelKitOpenVPNManager",
@@ -181,6 +189,11 @@ let package = Package(
             dependencies: [
                 "TunnelKitCore",
                 "TunnelKitLZO"
+            ]),
+        .target(
+            name: "TunnelKitLogging",
+            dependencies: [
+                "SwiftyBeaver"
             ])
     ]
 )
