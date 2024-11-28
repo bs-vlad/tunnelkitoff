@@ -1,9 +1,8 @@
 import Foundation
-import TunnelKitWireGuardCore
 import NetworkExtension
 import SwiftyBeaver
 
-private let log = CustomLogger.shared
+//private let log = CustomLogger.shared
 
 public class NetworkExtensionVPN: VPN {
 
@@ -36,7 +35,7 @@ public class NetworkExtensionVPN: VPN {
     public func reconnect(after: DispatchTimeInterval) async throws {
         let managers = try await NETunnelProviderManager.loadAllFromPreferences()
         guard let manager = managers.first else {
-            log.warning("No VPN configurations found")
+      //      log.warning("No VPN configurations found")
             return
         }
         
@@ -76,7 +75,7 @@ public class NetworkExtensionVPN: VPN {
     public func disconnect() async {
         guard let managers = try? await NETunnelProviderManager.loadAllFromPreferences(),
               !managers.isEmpty else {
-            log.warning("No VPN configurations found to disconnect")
+          //  log.warning("No VPN configurations found to disconnect")
             return
         }
         
@@ -90,7 +89,7 @@ public class NetworkExtensionVPN: VPN {
                     do {
                         try await manager.saveToPreferences()
                     } catch {
-                        log.error("Failed to save preferences for manager: \(error.localizedDescription)")
+           //             log.error("Failed to save preferences for manager: \(error.localizedDescription)")
                     }
                 }
             }
@@ -228,19 +227,20 @@ public class NetworkExtensionVPN: VPN {
 
         switch type {
         case .reinstall:
-            log.debug("VPN did reinstall (\(bundleId)): isEnabled=\(notification.vpnIsEnabled ?? false ? "true" : "false")")
+            debugPrint("reinstall")
+        //    log.debug("VPN did reinstall (\(bundleId)): isEnabled=\(notification.vpnIsEnabled ?? false ? "true" : "false")")
 
         case .statusChange:
             guard let connection = connection, connection.manager.localizedDescription != nil else {
-                log.verbose("Ignoring VPN notification from bogus manager")
+         //       log.verbose("Ignoring VPN notification from bogus manager")
                 return
             }
-            log.debug("VPN status did change (\(bundleId)): isEnabled=\(notification.vpnIsEnabled ?? false ? "true" : "false"), status=\(connection.status.rawValue)")
+       //     log.debug("VPN status did change (\(bundleId)): isEnabled=\(notification.vpnIsEnabled ?? false ? "true" : "false"), status=\(connection.status.rawValue)")
             notification.vpnStatus = connection.status.wrappedStatus
             notification.connectionDate = connection.connectedDate
 
         case .installError:
-            log.error("VPN installation failed: \(error?.localizedDescription ?? "Unknown error")")
+      //      log.error("VPN installation failed: \(error?.localizedDescription ?? "Unknown error")")
             notification.vpnError = error
         }
 
@@ -251,7 +251,7 @@ public class NetworkExtensionVPN: VPN {
 private extension NEVPNManager {
     var tunnelBundleIdentifier: String? {
         guard let proto = protocolConfiguration as? NETunnelProviderProtocol else {
-            log.warning("No bundle identifier found because protocolConfiguration is not NETunnelProviderProtocol (\(type(of: protocolConfiguration))")
+        //    log.warning("No bundle identifier found because protocolConfiguration is not NETunnelProviderProtocol (\(type(of: protocolConfiguration))")
             return nil
         }
         return proto.providerBundleIdentifier

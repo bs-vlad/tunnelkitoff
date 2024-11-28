@@ -56,7 +56,6 @@ let package = Package(
         .target(
             name: "TunnelKitManager",
             dependencies: [
-                "TunnelKitWireGuardCore",
                 "SwiftyBeaver"
             ]),
         .target(

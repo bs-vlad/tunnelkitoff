@@ -47,19 +47,19 @@ public final class CustomLogger {
           log.verbose(message(), file, function, line: line)
       }
 
-      public func setLogCallback(_ callback: @escaping (Date, String, Bool) -> Void) {
+      public func setLogCallback(_ callback: @escaping (Date, String, Bool, SwiftyBeaver.Level) -> Void) {
           CustomLogDestination.logCallback = callback
       }
 
       private class CustomLogDestination: BaseDestination {
-          static var logCallback: ((Date, String, Bool) -> Void)?
+          static var logCallback: ((Date, String, Bool, SwiftyBeaver.Level) -> Void)?
 
           override func send(_ level: SwiftyBeaver.Level, msg: String, thread: String,
                              file: String, function: String, line: Int, context: Any?) -> String? {
               let timestamp = Date()
               let isError = level == .error
 
-              CustomLogDestination.logCallback?(timestamp, msg, isError)
+              CustomLogDestination.logCallback?(timestamp, msg, isError, level)
 
               return super.send(level, msg: msg, thread: thread, file: file,
                                 function: function, line: line, context: context)
