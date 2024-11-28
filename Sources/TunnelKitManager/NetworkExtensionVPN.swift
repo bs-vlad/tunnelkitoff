@@ -1,15 +1,12 @@
 import Foundation
+import TunnelKitWireGuardCore
 import NetworkExtension
 import SwiftyBeaver
 
-private let log = SwiftyBeaver.self
+private let log = CustomLogger.shared
 
-/// `VPN` based on the NetworkExtension framework.
 public class NetworkExtensionVPN: VPN {
 
-    /**
-     Initializes a provider.
-     */
     public init() {
         let nc = NotificationCenter.default
         nc.addObserver(self, selector: #selector(vpnDidUpdate(_:)), name: .NEVPNStatusDidChange, object: nil)
@@ -100,7 +97,6 @@ public class NetworkExtensionVPN: VPN {
         }
     }
 
-///   m.connection.connectedDate
     public func uninstall() async {
         guard let managers = try? await NETunnelProviderManager.loadAllFromPreferences() else {
             return
@@ -113,8 +109,6 @@ public class NetworkExtensionVPN: VPN {
             try? await m.removeFromPreferences()
         }
     }
-
-    // MARK: Helpers
 
     @discardableResult
     private func installReturningManager(

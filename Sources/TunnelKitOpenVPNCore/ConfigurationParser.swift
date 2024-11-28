@@ -29,7 +29,7 @@ import TunnelKitCore
 import CTunnelKitCore
 import __TunnelKitUtils
 
-private let log = SwiftyBeaver.self
+private let log = CustomLogger.self
 
 extension OpenVPN {
 

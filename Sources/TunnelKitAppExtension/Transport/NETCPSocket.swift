@@ -38,8 +38,9 @@ import Foundation
 import NetworkExtension
 import SwiftyBeaver
 import TunnelKitCore
+import TunnelKitWireGuardCore
 
-private let log = SwiftyBeaver.self
+private let log = CustomLogger.self
 
 /// TCP implementation of a `GenericSocket` via NetworkExtension.
 public class NETCPSocket: NSObject, GenericSocket {

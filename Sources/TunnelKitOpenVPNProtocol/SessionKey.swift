@@ -41,7 +41,7 @@ import TunnelKitOpenVPNCore
 import CTunnelKitCore
 import CTunnelKitOpenVPNProtocol
 
-private let log = SwiftyBeaver.self
+private let log = CustomLogger.self
 
 extension OpenVPN {
     class SessionKey {

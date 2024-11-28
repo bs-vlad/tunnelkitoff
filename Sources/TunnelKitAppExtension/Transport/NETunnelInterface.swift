@@ -39,7 +39,7 @@ import NetworkExtension
 import TunnelKitCore
 import SwiftyBeaver
 
-private let log = SwiftyBeaver.self
+private let log = CustomLogger.self
 
 /// `TunnelInterface` implementation via NetworkExtension.
 public class NETunnelInterface: TunnelInterface {

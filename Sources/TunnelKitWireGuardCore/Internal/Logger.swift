@@ -1,34 +1,67 @@
-import SwiftyBeaver
-
-private let log = SwiftyBeaver.self
-
-extension OSLogType {
-    var sbLevel: SwiftyBeaver.Level {
-        switch self {
-        case .debug:
-            return .debug
-
-        case .info:
-            return .info
-
-        case .error, .fault:
-            return .error
-
-        default:
-            return .info
-        }
-    }
-}
-
 import Foundation
 import os.log
+import SwiftyBeaver
 
-public func wg_log(_ type: OSLogType, staticMessage msg: StaticString) {
-    os_log(msg, log: OSLog.default, type: type)
-    log.custom(level: type.sbLevel, message: msg, context: nil)
-}
+public final class CustomLogger {
+    public static let shared = CustomLogger()
+    private let log = SwiftyBeaver.self
 
-public func wg_log(_ type: OSLogType, message msg: String) {
-    os_log("%{public}s", log: OSLog.default, type: type, msg)
-    log.custom(level: type.sbLevel, message: msg, context: nil)
-}
+      private init() {
+          let customDestination = CustomLogDestination()
+          log.addDestination(customDestination)
+      }
+
+      public func debug(_ message: @autoclosure () -> Any,
+                        file: String = #file,
+                        function: String = #function,
+                        line: Int = #line) {
+          log.debug(message(), file, function, line: line)
+      }
+
+      public func error(_ message: @autoclosure () -> Any,
+                        file: String = #file,
+                        function: String = #function,
+                        line: Int = #line) {
+          log.error(message(), file, function, line: line)
+      }
+
+      public func info(_ message: @autoclosure () -> Any,
+                       file: String = #file,
+                       function: String = #function,
+                       line: Int = #line) {
+          log.info(message(), file, function, line: line)
+      }
+
+      public func warning(_ message: @autoclosure () -> Any,
+                          file: String = #file,
+                          function: String = #function,
+                          line: Int = #line) {
+          log.warning(message(), file, function, line: line)
+      }
+
+      public func verbose(_ message: @autoclosure () -> Any,
+                          file: String = #file,
+                          function: String = #function,
+                          line: Int = #line) {
+          log.verbose(message(), file, function, line: line)
+      }
+
+      public func setLogCallback(_ callback: @escaping (Date, String, Bool) -> Void) {
+          CustomLogDestination.logCallback = callback
+      }
+
+      private class CustomLogDestination: BaseDestination {
+          static var logCallback: ((Date, String, Bool) -> Void)?
+
+          override func send(_ level: SwiftyBeaver.Level, msg: String, thread: String,
+                             file: String, function: String, line: Int, context: Any?) -> String? {
+              let timestamp = Date()
+              let isError = level == .error
+
+              CustomLogDestination.logCallback?(timestamp, msg, isError)
+
+              return super.send(level, msg: msg, thread: thread, file: file,
+                                function: function, line: line, context: context)
+          }
+      }
+  }
