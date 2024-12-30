@@ -227,7 +227,7 @@ open class OpenVPNTunnelProvider: NEPacketTunnelProvider {
     }
 
     // MARK: Wake/Sleep (debugging placeholders)
-
+    
     open override func wake() {
         log.verbose("Wake signal received")
     }

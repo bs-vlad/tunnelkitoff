@@ -8,6 +8,7 @@ import TunnelKitOpenVPNCore
 import TunnelKitOpenVPNProtocol
 
 class NEUDPLink: LinkInterface {
+    
     private let impl: NWUDPSession
 
     private let maxDatagrams: Int

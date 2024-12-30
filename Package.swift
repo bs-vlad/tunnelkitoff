@@ -40,7 +40,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/SwiftyBeaver/SwiftyBeaver", from: "1.9.0"),
-        .package(url: "https://github.com/passepartoutvpn/wireguard-apple", revision: "b79f0f150356d8200a64922ecf041dd020140aa0")
+        .package(url: "https://github.com/groupofstars/wireguard-apple", revision: "f8cdfd6a78972c1060b5815728629d6de4e68f9b")
     ],
     targets: [
         .target(
@@ -116,9 +116,11 @@ let package = Package(
             dependencies: [
                 "__TunnelKitUtils",
                 "TunnelKitCore",
+                "TunnelKitLogging", // Add this dependency
                 .product(name: "WireGuardKit", package: "wireguard-apple"),
                 "SwiftyBeaver"
             ]),
+
         .target(
             name: "TunnelKitWireGuardManager",
             dependencies: [

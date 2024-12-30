@@ -1,4 +1,3 @@
-
 import Foundation
 import SwiftyBeaver
 import TunnelKitCore
@@ -537,7 +536,7 @@ extension OpenVPN {
                     do {
                         return try $0.withRandomPrefixLength(randomPrefixLength)
                     } catch {
-                        log.warning("Could not prepend random prefix: \(error)")
+                        log.error("Could not prepend random prefix: \(error)")
                         return nil
                     }
                 }
@@ -612,6 +611,7 @@ extension OpenVPN.Configuration {
     public func print(isLocal: Bool) {
         if isLocal {
             guard let remotes = remotes else {
+                log.error("No remotes set")
                 fatalError("No remotes set")
             }
             log.info("\tRemotes: \(remotes)")

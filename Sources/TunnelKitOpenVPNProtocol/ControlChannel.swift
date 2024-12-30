@@ -156,7 +156,7 @@ extension OpenVPN {
                 // track pending acks for sent packets
                 pendingAcks.insert(packet.packetId)
             }
-    //        log.verbose("Packets now pending ack: \(pendingAcks)")
+            log.verbose("Packets now pending ack: \(pendingAcks)")
             return rawList
         }
 
