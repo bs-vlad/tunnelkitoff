@@ -1,10 +1,10 @@
-
 import Foundation
 import NetworkExtension
 
 /// Simulates a VPN provider.
 public class MockVPN: VPN {
     private var tunnelBundleIdentifier: String?
+    private var mockConnectionDate: Date?
 
     private var isEnabled: Bool {
         didSet {
@@ -14,6 +14,11 @@ public class MockVPN: VPN {
 
     private var vpnStatus: VPNStatus {
         didSet {
+            if vpnStatus == .connected && oldValue != .connected {
+                mockConnectionDate = Date()
+            } else if vpnStatus != .connected {
+                mockConnectionDate = nil
+            }
             notifyStatus(vpnStatus)
         }
     }
@@ -39,13 +44,12 @@ public class MockVPN: VPN {
         self.tunnelBundleIdentifier = tunnelBundleIdentifier
         isEnabled = true
         vpnStatus = .disconnected
+        mockConnectionDate = nil
     }
 
     public func reconnect(after: DispatchTimeInterval) async throws {
-        if vpnStatus == .connected {
-            vpnStatus = .disconnecting
-            await delay()
-        }
+        vpnStatus = .disconnecting
+        await delay()
         vpnStatus = .connecting
         await delay()
         vpnStatus = .connected
@@ -59,31 +63,25 @@ public class MockVPN: VPN {
     ) async throws {
         self.tunnelBundleIdentifier = tunnelBundleIdentifier
         isEnabled = true
-        if vpnStatus == .connected {
-            vpnStatus = .disconnecting
-            await delay()
-        }
-        vpnStatus = .connecting
-        await delay()
-        vpnStatus = .connected
+        try await reconnect(after: after)
     }
 
     public func disconnect() async {
-        guard vpnStatus != .disconnected else {
-            return
-        }
         vpnStatus = .disconnecting
         await delay()
         vpnStatus = .disconnected
-        isEnabled = false
+        mockConnectionDate = nil
     }
 
     public func uninstall() async {
+        vpnStatus = .disconnecting
+        await delay()
         vpnStatus = .disconnected
+        mockConnectionDate = nil
         isEnabled = false
     }
 
-    // MARK: Helpers
+    // MARK: Notifications
 
     private func notifyReinstall(_ isEnabled: Bool) {
         var notification = Notification(name: VPNNotification.didReinstall)
@@ -97,6 +95,7 @@ public class MockVPN: VPN {
         notification.vpnBundleIdentifier = tunnelBundleIdentifier
         notification.vpnIsEnabled = isEnabled
         notification.vpnStatus = status
+        notification.connectionDate = mockConnectionDate
         NotificationCenter.default.post(notification)
     }
 

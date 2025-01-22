@@ -43,9 +43,22 @@ extension Notification {
         set { setUserInfoValue(newValue, for: .connectionDate) }
     }
 
-    private mutating func setUserInfoValue<T>(_ value: T?, for key: UserInfoKey) {
-        var newInfo = userInfo ?? [:]
-        newInfo[key.rawValue] = value
-        userInfo = newInfo
+    public var connectionDuration: TimeInterval? {
+        guard let date = connectionDate else { return nil }
+        return Date().timeIntervalSince(date)
+    }
+
+    public var formattedDuration: String? {
+        guard let duration = connectionDuration else { return nil }
+        let formatter = DateComponentsFormatter()
+        formatter.allowedUnits = [.hour, .minute, .second]
+        formatter.unitsStyle = .abbreviated
+        return formatter.string(from: duration)
+    }
+
+    private mutating func setUserInfoValue(_ value: Any?, for key: UserInfoKey) {
+        var info = userInfo ?? [:]
+        info[key.rawValue] = value
+        userInfo = info
     }
 }

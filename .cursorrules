@@ -3,6 +3,196 @@ This is a library, a fork of the Apple TunnelKit library from https://github.com
 For OpenVPN, we use the OpenSSL library. https://developer.apple.com/documentation/xcode/distributing-binary-frameworks-as-swift-packages this is the guide for distributing binary frameworks as Swift packages (this is how we added OpenSSL to the project).
 When generating code, finding bugs, or optimizing Swift code, follow these guidelines:
 
+## Project Structure
+
+.
+├── CHANGELOG.md
+├── CLA.rst
+├── CONTRIBUTING.md
+├── Demo
+│   ├── Demo
+│   │   ├── DemoTunnel.plist
+│   │   ├── Tunnel
+│   │   ├── UI
+│   │   ├── iOS
+│   │   ├── macOS
+│   │   └── tvOS
+│   └── TunnelKit.xcodeproj
+│       ├── project.pbxproj
+│       ├── project.xcworkspace
+│       ├── xcshareddata
+│       └── xcuserdata
+├── Frameworks
+│   └── OpenSSL.xcframework
+│       ├── Info.plist
+│       ├── _CodeSignature
+│       ├── ios-arm64
+│       ├── ios-arm64_x86_64-maccatalyst
+│       ├── ios-arm64_x86_64-simulator
+│       ├── macos-arm64_x86_64
+│       ├── tvos-arm64
+│       ├── tvos-arm64_x86_64-simulator
+│       ├── watchos-arm64_arm64_32_armv7k
+│       ├── watchos-arm64_x86_64-simulator
+│       ├── xros-arm64
+│       └── xros-arm64_x86_64-simulator
+├── LICENSE
+├── Package.resolved
+├── Package.swift
+├── README.md
+├── Scripts
+│   └── build_wireguard_go_bridge.sh
+├── Sources
+│   ├── CTunnelKitCore
+│   │   ├── Allocation.m
+│   │   ├── LZOFactory.m
+│   │   ├── ZeroingData.m
+│   │   └── include
+│   ├── CTunnelKitOpenVPNCore
+│   │   ├── Errors.m
+│   │   └── include
+│   ├── CTunnelKitOpenVPNProtocol
+│   │   ├── ControlPacket.m
+│   │   ├── CryptoAEAD.m
+│   │   ├── CryptoBox.m
+│   │   ├── CryptoCBC.m
+│   │   ├── CryptoCTR.m
+│   │   ├── DataPath.m
+│   │   ├── MSS.m
+│   │   ├── PacketMacros.m
+│   │   ├── PacketStream.m
+│   │   ├── ReplayProtector.m
+│   │   ├── TLSBox.m
+│   │   └── include
+│   ├── TunnelKit
+│   │   └── Exports.swift
+│   ├── TunnelKitAppExtension
+│   │   ├── GenericSocket.swift
+│   │   ├── InterfaceObserver.swift
+│   │   ├── LinkProducer.swift
+│   │   ├── MemoryDestination.swift
+│   │   └── Transport
+│   ├── TunnelKitCore
+│   │   ├── BidirectionalState.swift
+│   │   ├── CoreConfiguration.swift
+│   │   ├── DNSProtocol.swift
+│   │   ├── DNSResolver.swift
+│   │   ├── DataCount.swift
+│   │   ├── DataUnit.swift
+│   │   ├── Endpoint.swift
+│   │   ├── IOInterface.swift
+│   │   ├── IPHeader.swift
+│   │   ├── IPv4Settings.swift
+│   │   ├── IPv6Settings.swift
+│   │   ├── LinkInterface.swift
+│   │   ├── Proxy.swift
+│   │   ├── SecureRandom.swift
+│   │   ├── Session.swift
+│   │   ├── SocketType.swift
+│   │   ├── TunnelInterface.swift
+│   │   ├── TunnelKitCoreError.swift
+│   │   └── ZeroingData.swift
+│   ├── TunnelKitLZO
+│   │   ├── StandardLZO.m
+│   │   ├── include
+│   │   └── lib
+│   ├── TunnelKitLogging
+│   │   └── TKLogger.swift
+│   ├── TunnelKitManager
+│   │   ├── Keychain.swift
+│   │   ├── MockVPN.swift
+│   │   ├── NetworkExtensionConfiguration.swift
+│   │   ├── NetworkExtensionVPN.swift
+│   │   ├── TunnelKitManagerError.swift
+│   │   ├── VPN.swift
+│   │   ├── VPNNotification.swift
+│   │   └── VPNStatus.swift
+│   ├── TunnelKitOpenVPN
+│   │   └── Exports.swift
+│   ├── TunnelKitOpenVPNAppExtension
+│   │   ├── ConnectionStrategy.swift
+│   │   ├── NETCPLink.swift
+│   │   ├── NEUDPLink.swift
+│   │   ├── NetworkSettingsBuilder.swift
+│   │   ├── OpenVPNTunnelProvider.swift
+│   │   └── ResolvedRemote.swift
+│   ├── TunnelKitOpenVPNCore
+│   │   ├── CompressionAlgorithm.swift
+│   │   ├── CompressionFraming.swift
+│   │   ├── Configuration.swift
+│   │   ├── ConfigurationError.swift
+│   │   ├── ConfigurationParser.swift
+│   │   ├── CryptoContainer.swift
+│   │   ├── OpenVPN.swift
+│   │   ├── OpenVPNError.swift
+│   │   ├── StaticKey.swift
+│   │   ├── TLSWrap.swift
+│   │   └── XORMethod.swift
+│   ├── TunnelKitOpenVPNManager
+│   │   ├── OpenVPN+ProviderConfiguration.swift
+│   │   └── TunnelKitOpenVPNError.swift
+│   ├── TunnelKitOpenVPNProtocol
+│   │   ├── Authenticator.swift
+│   │   ├── ControlChannel.swift
+│   │   ├── ControlChannelSerializer.swift
+│   │   ├── CoreConfiguration+OpenVPN.swift
+│   │   ├── EncryptionBridge.swift
+│   │   ├── OpenVPN+PRNG.swift
+│   │   ├── OpenVPNSession+PIA.swift
+│   │   ├── OpenVPNSession.swift
+│   │   ├── Packet.swift
+│   │   ├── ProtocolMacros.swift
+│   │   ├── PushReply.swift
+│   │   ├── SessionKey.swift
+│   │   └── XORProcessor.swift
+│   ├── TunnelKitWireGuard
+│   │   └── Exports.swift
+│   ├── TunnelKitWireGuardAppExtension
+│   │   └── WireGuardTunnelProvider.swift
+│   ├── TunnelKitWireGuardCore
+│   │   ├── Configuration+WireGuardKit.swift
+│   │   ├── Configuration.swift
+│   │   ├── ConfigurationError.swift
+│   │   ├── Internal
+│   │   └── WireGuard.swift
+│   ├── TunnelKitWireGuardManager
+│   │   ├── DataCount+WireGuard.swift
+│   │   ├── TunnelKitWireGuardError.swift
+│   │   └── WireGuard+ProviderConfiguration.swift
+│   └── __TunnelKitUtils
+│       ├── Data+Manipulation.swift
+│       ├── NSRegularExpression+Shortcuts.swift
+│       └── Utils.swift
+└── Tests
+    ├── TunnelKitCoreTests
+    │   ├── DataManipulationTests.swift
+    │   ├── ParsingTests.swift
+    │   ├── RandomTests.swift
+    │   ├── RawPerformanceTests.swift
+    │   ├── RoutingTests.swift
+    │   └── TestUtils.swift
+    ├── TunnelKitLZOTests
+    │   └── CompressionTests.swift
+    └── TunnelKitOpenVPNTests
+        ├── AppExtensionTests.swift
+        ├── ConfigurationParserTests.swift
+        ├── ConfigurationTests.swift
+        ├── ControlChannelTests.swift
+        ├── CryptoAEADTests.swift
+        ├── CryptoCBCTests.swift
+        ├── CryptoCTRTests.swift
+        ├── DataPathEncryptionTests.swift
+        ├── DataPathPerformanceTests.swift
+        ├── EncryptionPerformanceTests.swift
+        ├── EncryptionTests.swift
+        ├── LinkTests.swift
+        ├── PacketTests.swift
+        ├── PushTests.swift
+        ├── Resources
+        ├── StaticKeyTests.swift
+        ├── TestUtils.swift
+        └── XORTests.swift
+
 ## General Guidelines
 
 Project Context: You are working on TunnelKit library for Apple Platforms. The library helps with integrating both OpenVPN and WireGuard protocols. The library is used on iOS/iPadOS/tvOS and MacOs so all code should be written in Swift.
@@ -13,7 +203,7 @@ Optimizing: When you are asked to optimize the code, always consider the perform
 Performance: Optimize for performance, especially in areas critical to VPN functionality.
 
 - You are an expert AI programming assistant focused on producing clear, readable Swift and SwiftUI code.
-- Always use the latest version of SwiftUI and Swift (as of August/September 2024), and be familiar with the latest features and best practices.
+- Always use the latest version of SwiftUI and Swift (as of January 2025), and be familiar with the latest features and best practices.
 - Provide accurate, factual, thoughtful answers, and excel at reasoning.
 - Follow the user's requirements carefully & to the letter.
 - Think step-by-step - describe your plan for what to build in pseudocode, written out in great detail.
