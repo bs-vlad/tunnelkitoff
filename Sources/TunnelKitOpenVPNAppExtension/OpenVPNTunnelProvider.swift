@@ -64,7 +64,8 @@ open class OpenVPNTunnelProvider: NEPacketTunnelProvider {
 
     // MARK: Constants
 
-    private let tunnelQueue = DispatchQueue(label: OpenVPNTunnelProvider.description(), qos: .utility)
+    private let tunnelQueue = DispatchQueue(label: OpenVPNTunnelProvider.description(), qos: .userInitiated, 
+                                          attributes: [.concurrent])
 
     private let prngSeedLength = 64
 
@@ -95,6 +96,8 @@ open class OpenVPNTunnelProvider: NEPacketTunnelProvider {
     private var isCountingData = false
 
     private var shouldReconnect = false
+
+    private var dataCountTimer: DispatchSourceTimer?
 
     // MARK: NEPacketTunnelProvider (XPC queue)
 
@@ -249,7 +252,7 @@ open class OpenVPNTunnelProvider: NEPacketTunnelProvider {
             return
         }
 
-        strategy.createSocket(from: self, timeout: dnsTimeout, queue: tunnelQueue) {
+        strategy.createSocket(from: self, timeout: max(1000, dnsTimeout), queue: tunnelQueue) {
             switch $0 {
             case .success(let socket):
                 self.connectTunnel(via: socket)
@@ -342,17 +345,22 @@ open class OpenVPNTunnelProvider: NEPacketTunnelProvider {
     // MARK: Data counter (tunnel queue)
 
     private func refreshDataCount() {
-        guard dataCountInterval > 0 else {
-            return
+        guard dataCountInterval > 0 else { return }
+        
+        dataCountTimer?.cancel()
+        let timer = DispatchSource.makeTimerSource(queue: tunnelQueue)
+        timer.schedule(deadline: .now(), repeating: .milliseconds(dataCountInterval))
+        timer.setEventHandler { [weak self] in
+            guard let self, self.isCountingData,
+                  let session = self.session,
+                  let dataCount = session.dataCount() else {
+                self?.cfg._appexSetDataCount(nil)
+                return
+            }
+            self.cfg._appexSetDataCount(dataCount)
         }
-        tunnelQueue.schedule(after: .milliseconds(dataCountInterval)) { [weak self] in
-            self?.refreshDataCount()
-        }
-        guard isCountingData, let session = session, let dataCount = session.dataCount() else {
-            cfg._appexSetDataCount(nil)
-            return
-        }
-        cfg._appexSetDataCount(dataCount)
+        timer.resume()
+        dataCountTimer = timer
     }
 }
 
@@ -496,6 +504,8 @@ extension OpenVPNTunnelProvider: OpenVPNSessionDelegate {
 
     public func sessionDidStop(_: OpenVPNSession, withError error: Error?, shouldReconnect: Bool) {
         cfg._appexSetServerConfiguration(nil)
+        session?.cleanup()
+        session = nil
 
         if let error = error {
             log.error("Session did stop with error: \(error)")
@@ -510,51 +520,18 @@ extension OpenVPNTunnelProvider: OpenVPNSessionDelegate {
         socket?.shutdown()
     }
 
-    private func bringNetworkUp(remoteAddress: String, localOptions: OpenVPN.Configuration, remoteOptions: OpenVPN.Configuration, completionHandler: @escaping (Error?) -> Void) {
-        let newSettings = NetworkSettingsBuilder(remoteAddress: remoteAddress, localOptions: localOptions, remoteOptions: remoteOptions)
-
+    private func bringNetworkUp(remoteAddress: String, localOptions: OpenVPN.Configuration, 
+                          remoteOptions: OpenVPN.Configuration, completionHandler: @escaping (Error?) -> Void) {
+        var newSettings = NetworkSettingsBuilder(remoteAddress: remoteAddress, 
+                                               localOptions: localOptions, 
+                                               remoteOptions: remoteOptions)
+        
+    
         guard !newSettings.isGateway || newSettings.hasGateway else {
             session?.shutdown(error: TunnelKitOpenVPNError.gatewayUnattainable)
             return
         }
-
-//        // block LAN if desired
-//        if routingPolicies?.contains(.blockLocal) ?? false {
-//            let table = RoutingTable()
-//            if isIPv4Gateway,
-//                let gateway = table.defaultGateway4()?.gateway(),
-//                let route = table.broadestRoute4(matchingDestination: gateway) {
-//
-//                route.partitioned()?.forEach {
-//                    let destination = $0.network()
-//                    guard let netmask = $0.networkMask() else {
-//                        return
-//                    }
-//
-//                    log.info("Block local: Suppressing IPv4 route \(destination)/\($0.prefix())")
-//
-//                    let included = NEIPv4Route(destinationAddress: destination, subnetMask: netmask)
-//                    included.gatewayAddress = options.ipv4?.defaultGateway
-//                    ipv4Settings?.includedRoutes?.append(included)
-//                }
-//            }
-//            if isIPv6Gateway,
-//                let gateway = table.defaultGateway6()?.gateway(),
-//                let route = table.broadestRoute6(matchingDestination: gateway) {
-//
-//                route.partitioned()?.forEach {
-//                    let destination = $0.network()
-//                    let prefix = $0.prefix()
-//
-//                    log.info("Block local: Suppressing IPv6 route \(destination)/\($0.prefix())")
-//
-//                    let included = NEIPv6Route(destinationAddress: destination, networkPrefixLength: prefix as NSNumber)
-//                    included.gatewayAddress = options.ipv6?.defaultGateway
-//                    ipv6Settings?.includedRoutes?.append(included)
-//                }
-//            }
-//        }
-
+        
         setTunnelNetworkSettings(newSettings.build(), completionHandler: completionHandler)
     }
 }
@@ -570,7 +547,12 @@ extension OpenVPNTunnelProvider {
 
     // MARK: Logging
 
+    private static var loggingInitialized = false
+
     private func configureLogging() {
+        guard !Self.loggingInitialized else { return }
+        Self.loggingInitialized = true
+        
         let logLevel: SwiftyBeaver.Level = (cfg.shouldDebug ? debugLogLevel : .info)
         let logFormat = cfg.debugLogFormat ?? "$Dyyyy-MM-dd HH:mm:ss.SSS$d $L $N.$F:$l - $M"
 
@@ -648,6 +630,15 @@ private extension OpenVPNTunnelProvider {
     }
 
     func openVPNError(from error: Error) -> TunnelKitOpenVPNError? {
+        if let neError = error as? NEVPNError {
+            // Map system errors to existing cases
+            switch neError.code {
+            case .connectionFailed: return .linkError
+            case .configurationInvalid: return .tlsInitialization
+            case .configurationDisabled: return .authentication
+            default: return .unexpectedReply
+            }
+        }
         if let specificError = error.asNativeOpenVPNError ?? error as? OpenVPNError {
             switch specificError {
             case .negotiationTimeout, .pingTimeout, .staleSession:
