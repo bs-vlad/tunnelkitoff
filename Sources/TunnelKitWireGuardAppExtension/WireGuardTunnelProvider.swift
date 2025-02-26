@@ -61,15 +61,17 @@ open class WireGuardTunnelProvider: NEPacketTunnelProvider {
         // Handle DNS for split tunneling
         if let splitTunneling = cfg.splitTunneling, splitTunneling.policy == .include {
             // Only use DNS if VPN is handling all traffic or DNS server is in allowed IPs
-            let dnsServers = configuration.interface.dns ?? []
+            let dnsServers = tunnelConfiguration.interface.dns
             let shouldUseDNS = dnsServers.contains { server in
-                splitTunneling.routes.contains { cidr in
-                    server.isIncludedInAny(of: splitTunneling.routes)
+                // Extract the IP string from DNSServer
+                let serverIP = server.stringRepresentation
+                return splitTunneling.routes.contains { cidr in
+                    isIPAddress(serverIP, includedIn: cidr)
                 }
             }
             
             if !shouldUseDNS {
-                configuration.interface.dns = []
+                tunnelConfiguration.interface.dns = []
             }
         }
 
@@ -246,8 +248,44 @@ private extension String {
     func isIncludedInAny(of cidrs: [String]) -> Bool {
         guard let ipAddress = IPv4Address(self) else { return false }
         return cidrs.contains { cidr in
-            guard let network = IPv4AddressRange(from: cidr) else { return false }
-            return network.contains(ipAddress: ipAddress)
+            isIPAddress(self, includedIn: cidr)
         }
     }
+}
+
+// Helper function to check if an IP is within a CIDR range
+private func isIPAddress(_ ip: String, includedIn cidr: String) -> Bool {
+    // Parse IP address
+    guard let ipComponents = ip.split(separator: ".").map({ UInt8($0) }),
+          ipComponents.count == 4,
+          let ipByte1 = ipComponents[0],
+          let ipByte2 = ipComponents[1],
+          let ipByte3 = ipComponents[2],
+          let ipByte4 = ipComponents[3] else {
+        return false
+    }
+    
+    // Parse CIDR notation (e.g., "192.168.1.0/24")
+    let cidrComponents = cidr.split(separator: "/")
+    guard cidrComponents.count == 2,
+          let networkComponents = cidrComponents[0].split(separator: ".").map({ UInt8($0) }),
+          networkComponents.count == 4
+          let netByte1 = networkComponents[0],
+          let netByte2 = networkComponents[1],
+          let netByte3 = networkComponents[2],
+          let netByte4 = networkComponents[3],
+          let prefixLength = UInt8(cidrComponents[1]),
+          prefixLength <= 32 else {
+        return false
+    }
+    
+    // Convert IP addresses to UInt32 for easier comparison
+    let ipValue = (UInt32(ipByte1) << 24) | (UInt32(ipByte2) << 16) | (UInt32(ipByte3) << 8) | UInt32(ipByte4)
+    let networkValue = (UInt32(netByte1) << 24) | (UInt32(netByte2) << 16) | (UInt32(netByte3) << 8) | UInt32(netByte4)
+    
+    // Create a mask based on the prefix length
+    let mask: UInt32 = prefixLength == 0 ? 0 : ~((1 << (32 - prefixLength)) - 1)
+    
+    // Check if the IP address is in the network range
+    return (ipValue & mask) == (networkValue & mask)
 }
