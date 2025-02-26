@@ -18,9 +18,13 @@ struct NetworkSettingsBuilder {
         self.remoteAddress = remoteAddress
         self.localOptions = localOptions
         self.remoteOptions = remoteOptions
+        log.info("NetworkSettingsBuilder initialized with remote address: \(remoteAddress.maskedDescription)")
+        log.debug("Local options has \(localOptions.routes4?.count ?? 0) IPv4 routes and \(localOptions.routes6?.count ?? 0) IPv6 routes")
+        log.debug("Remote options has \(remoteOptions.routes4?.count ?? 0) IPv4 routes and \(remoteOptions.routes6?.count ?? 0) IPv6 routes")
     }
 
     func build() -> NEPacketTunnelNetworkSettings {
+        log.info("Building network settings for tunnel")
         let ipv4Settings = computedIPv4Settings
         let ipv6Settings = computedIPv6Settings
         let dnsSettings = computedDNSSettings
@@ -28,10 +32,13 @@ struct NetworkSettingsBuilder {
 
         // add direct routes to DNS servers
         if !isGateway {
+            log.debug("Adding direct routes to DNS servers (not in gateway mode)")
             for server in dnsSettings?.servers ?? [] {
                 if server.contains(":") {
+                    log.debug("Adding direct IPv6 route to DNS server: \(server.maskedDescription)")
                     ipv6Settings?.includedRoutes?.insert(NEIPv6Route(destinationAddress: server, networkPrefixLength: 128), at: 0)
                 } else {
+                    log.debug("Adding direct IPv4 route to DNS server: \(server.maskedDescription)")
                     ipv4Settings?.includedRoutes?.insert(NEIPv4Route(destinationAddress: server, subnetMask: "255.255.255.255"), at: 0)
                 }
             }
@@ -43,8 +50,16 @@ struct NetworkSettingsBuilder {
         settings.dnsSettings = dnsSettings
         settings.proxySettings = proxySettings
         if let mtu = localOptions.mtu, mtu > 0 {
+            log.debug("Setting MTU to \(mtu)")
             settings.mtu = NSNumber(value: mtu)
+        } else {
+            log.debug("No MTU set in configuration")
         }
+        log.info("Network settings built successfully")
+        log.debug("IPv4 settings: \(ipv4Settings != nil ? "configured" : "not configured")")
+        log.debug("IPv6 settings: \(ipv6Settings != nil ? "configured" : "not configured")")
+        log.debug("DNS settings: \(dnsSettings != nil ? "configured" : "not configured")")
+        log.debug("Proxy settings: \(proxySettings != nil ? "configured" : "not configured")")
         return settings
     }
 }
@@ -136,24 +151,30 @@ extension NetworkSettingsBuilder {
 
     private var computedIPv4Settings: NEIPv4Settings? {
         guard let ipv4 = remoteOptions.ipv4 else {
+            log.warning("No IPv4 settings found in remote options")
             return nil
         }
+        log.debug("Creating IPv4 settings with address: \(ipv4.address.maskedDescription) and mask: \(ipv4.addressMask)")
         let ipv4Settings = NEIPv4Settings(addresses: [ipv4.address], subnetMasks: [ipv4.addressMask])
         var neRoutes: [NEIPv4Route] = []
         var neExcludedRoutes: [NEIPv4Route] = []
 
         switch localOptions.splitTunneling?.policy {
         case .include:
+            log.info("Split tunneling mode: Include (only routing specified CIDRs through VPN)")
             // Include mode - only route specified CIDRs through VPN
             // Ignore server-pushed redirect-gateway and use local routes
             for cidr in localOptions.splitTunneling?.routes ?? [] {
                 if let route = createIPv4Route(fromCIDR: cidr, defaultGateway: ipv4.defaultGateway) {
                     neRoutes.append(route)
                     log.info("SplitTunnel.Include.IPv4: Adding route \(route.destinationAddress)/\(route.destinationSubnetMask)")
+                } else {
+                    log.warning("Failed to create IPv4 route from CIDR: \(cidr)")
                 }
             }
             
         case .exclude:
+            log.info("Split tunneling mode: Exclude (routing all traffic except specified CIDRs through VPN)")
             // Exclude mode - route all traffic through VPN except specified CIDRs
             // Set default gateway and exclude specified routes
             let defaultRoute = NEIPv4Route.default()
@@ -165,16 +186,21 @@ extension NetworkSettingsBuilder {
                 if let route = createIPv4Route(fromCIDR: cidr, useNetGateway: true) {
                     neExcludedRoutes.append(route)
                     log.info("SplitTunnel.Exclude.IPv4: Excluding route \(route.destinationAddress)/\(route.destinationSubnetMask)")
+                } else {
+                    log.warning("Failed to create excluded IPv4 route from CIDR: \(cidr)")
                 }
             }
             
         default:
+            log.info("Standard routing (no split tunneling)")
             // No split tunneling - use standard routing logic
             if isIPv4Gateway {
                 let defaultRoute = NEIPv4Route.default()
                 defaultRoute.gatewayAddress = ipv4.defaultGateway
                 neRoutes.append(defaultRoute)
                 log.info("Routing.IPv4: Setting default gateway to \(ipv4.defaultGateway)")
+            } else {
+                log.debug("IPv4 gateway not enabled")
             }
 
             for r in allRoutes4 {
@@ -186,6 +212,7 @@ extension NetworkSettingsBuilder {
             }
         }
 
+        log.debug("IPv4 settings include \(neRoutes.count) routes and \(neExcludedRoutes.count) excluded routes")
         ipv4Settings.includedRoutes = neRoutes
         ipv4Settings.excludedRoutes = neExcludedRoutes
         return ipv4Settings
@@ -224,10 +251,13 @@ extension NetworkSettingsBuilder {
         var hasGateway = false
         if isIPv4Gateway && remoteOptions.ipv4 != nil {
             hasGateway = true
+            log.debug("IPv4 gateway is available")
         }
         if isIPv6Gateway && remoteOptions.ipv6 != nil {
             hasGateway = true
+            log.debug("IPv6 gateway is available")
         }
+        log.info("hasGateway check result: \(hasGateway)")
         return hasGateway
     }
 }
@@ -235,6 +265,7 @@ extension NetworkSettingsBuilder {
 extension NetworkSettingsBuilder {
     private var computedDNSSettings: NEDNSSettings? {
         guard localOptions.isDNSEnabled ?? true else {
+            log.info("DNS is disabled in configuration")
             return nil
         }
         var dnsSettings: NEDNSSettings?
@@ -242,6 +273,7 @@ extension NetworkSettingsBuilder {
         case .https:
             let dnsServers = localOptions.dnsServers ?? []
             guard let serverURL = localOptions.dnsHTTPSURL else {
+                log.warning("DNS over HTTPS enabled but no server URL provided")
                 break
             }
             let specific = NEDNSOverHTTPSSettings(servers: dnsServers)
@@ -253,6 +285,7 @@ extension NetworkSettingsBuilder {
         case .tls:
             let dnsServers = localOptions.dnsServers ?? []
             guard let serverName = localOptions.dnsTLSServerName else {
+                log.warning("DNS over TLS enabled but no server name provided")
                 break
             }
             let specific = NEDNSOverTLSSettings(servers: dnsServers)
@@ -262,6 +295,7 @@ extension NetworkSettingsBuilder {
             log.info("\tTLS server name: \(serverName)")
 
         default:
+            log.debug("Using standard DNS settings")
             break
         }
 
@@ -272,10 +306,8 @@ extension NetworkSettingsBuilder {
                 log.info("DNS: Using servers \(dnsServers)")
                 dnsSettings = NEDNSSettings(servers: dnsServers)
             } else {
-//                log.warning("DNS: No servers provided, using fall-back servers: \(fallbackDNSServers)")
-//                dnsSettings = NEDNSSettings(servers: fallbackDNSServers)
                 if isGateway {
-                    log.warning("DNS: No settings provided")
+                    log.warning("DNS: No settings provided, using system defaults")
                 } else {
                     log.warning("DNS: No settings provided, using current network settings")
                 }
@@ -284,6 +316,7 @@ extension NetworkSettingsBuilder {
 
         // "hack" for split DNS (i.e. use VPN only for DNS)
         if !isGateway {
+            log.debug("Configuring split DNS (VPN for DNS only)")
             dnsSettings?.matchDomains = [""]
         }
 
@@ -297,6 +330,7 @@ extension NetworkSettingsBuilder {
             log.info("DNS: Using search domains: \(searchDomains)")
             dnsSettings?.searchDomains = searchDomains
             if !isGateway {
+                log.debug("Setting DNS match domains to search domains for split DNS")
                 dnsSettings?.matchDomains = dnsSettings?.searchDomains
             }
         }

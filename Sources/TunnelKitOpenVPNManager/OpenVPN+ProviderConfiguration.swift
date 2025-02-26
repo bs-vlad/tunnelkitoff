@@ -1,12 +1,11 @@
-
 import Foundation
 import TunnelKitManager
-import TunnelKitCore
 import TunnelKitOpenVPNCore
 import NetworkExtension
-import SwiftyBeaver
-import __TunnelKitUtils
 import TunnelKitLogging
+import TunnelKitCore
+
+import __TunnelKitUtils
 
 private let log = TKLogger.shared
 
@@ -55,6 +54,10 @@ extension OpenVPN {
             self.title = title
             self.appGroup = appGroup
             self.configuration = configuration
+            
+            log.info("Created OpenVPN provider configuration with title: \(title)")
+            log.debug("Using app group: \(appGroup)")
+            log.debug("OpenVPN configuration has \(configuration.remotes?.count ?? 0) remotes")
         }
 
         public func print() {
@@ -78,21 +81,44 @@ extension OpenVPN.ProviderConfiguration: NetworkExtensionConfiguration {
         extra: NetworkExtensionExtra?
     ) throws -> NETunnelProviderProtocol {
         guard let firstRemote = configuration.remotes?.first else {
+            log.error("No remotes set in configuration")
             preconditionFailure("No remotes set")
         }
 
+        log.debug("Creating NETunnelProviderProtocol with bundle ID: \(tunnelBundleIdentifier)")
         let protocolConfiguration = NETunnelProviderProtocol()
         protocolConfiguration.providerBundleIdentifier = tunnelBundleIdentifier
         protocolConfiguration.serverAddress = "\(firstRemote.address):\(firstRemote.proto.port)"
+        log.debug("Server address set to: \(firstRemote.address.maskedDescription):\(firstRemote.proto.port)")
+        
         if let username = username {
+            log.debug("Setting username: \(username.maskedDescription)")
             protocolConfiguration.username = username
-            protocolConfiguration.passwordReference = extra?.passwordReference
+            
+            if let passwordReference = extra?.passwordReference {
+                log.debug("Password reference available")
+                protocolConfiguration.passwordReference = passwordReference
+            } else {
+                log.warning("No password reference provided for username")
+            }
+        } else {
+            log.debug("No username set")
         }
-        protocolConfiguration.disconnectOnSleep = extra?.disconnectsOnSleep ?? false
+        
+        let disconnectOnSleep = extra?.disconnectsOnSleep ?? false
+        log.debug("Setting disconnectOnSleep: \(disconnectOnSleep)")
+        protocolConfiguration.disconnectOnSleep = disconnectOnSleep
+        
+        log.debug("Converting provider configuration to dictionary")
         protocolConfiguration.providerConfiguration = try asDictionary()
+        
         #if !os(tvOS)
-        protocolConfiguration.includeAllNetworks = extra?.killSwitch ?? false
+        let killSwitch = extra?.killSwitch ?? false
+        log.debug("Setting includeAllNetworks (kill switch): \(killSwitch)")
+        protocolConfiguration.includeAllNetworks = killSwitch
         #endif
+        
+        log.info("NETunnelProviderProtocol created successfully")
         return protocolConfiguration
     }
 }
@@ -105,13 +131,16 @@ extension OpenVPN.ProviderConfiguration {
      The most recent (received, sent) count in bytes.
      */
     public var dataCount: DataCount? {
-        return defaults?.openVPNDataCount
+        let count = defaults?.openVPNDataCount
+            //log.verbose("Retrieved data count: \(count?r ?? "nil")")
+        return count
     }
 
     /**
      The server configuration pulled by the VPN.
      */
     public var serverConfiguration: OpenVPN.Configuration? {
+        log.verbose("Retrieving server configuration from defaults")
         return defaults?.openVPNServerConfiguration
     }
 
@@ -119,71 +148,109 @@ extension OpenVPN.ProviderConfiguration {
      The last error reported by the tunnel, if any.
      */
     public var lastError: TunnelKitOpenVPNError? {
-        return defaults?.openVPNLastError
+        let error = defaults?.openVPNLastError
+        if let error = error {
+            log.debug("Retrieved last error: \(error.rawValue)")
+        }
+        return error
     }
 
     /**
      The URL of the latest debug log.
      */
     public var urlForDebugLog: URL? {
-        return defaults?.openVPNURLForDebugLog(appGroup: appGroup)
+        let url = defaults?.openVPNURLForDebugLog(appGroup: appGroup)
+        log.verbose("Debug log URL: \(url?.path ?? "nil")")
+        return url
     }
 
     private var defaults: UserDefaults? {
+        log.verbose("Accessing UserDefaults for app group: \(appGroup)")
         return UserDefaults(suiteName: appGroup)
     }
 }
 
 extension OpenVPN.ProviderConfiguration {
     public func _appexSetDataCount(_ newValue: DataCount?) {
+      //  log.verbose("Setting data count: \(newValue?.description ?? "nil")")
         defaults?.openVPNDataCount = newValue
     }
 
     public func _appexSetServerConfiguration(_ newValue: OpenVPN.Configuration?) {
+        if newValue != nil {
+            log.debug("Setting server configuration")
+        } else {
+            log.debug("Clearing server configuration")
+        }
         defaults?.openVPNServerConfiguration = newValue
     }
 
     public func _appexSetLastError(_ newValue: TunnelKitOpenVPNError?) {
+        if let error = newValue {
+            log.debug("Setting last error: \(error.rawValue)")
+        } else {
+            log.debug("Clearing last error")
+        }
         defaults?.openVPNLastError = newValue
     }
 
     public var _appexDebugLogURL: URL? {
         guard let path = debugLogPath else {
+            log.warning("No debug log path set")
             return nil
         }
-        return FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup)?
+        let url = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup)?
             .appendingPathComponent(path)
+        log.debug("Debug log URL: \(url?.path ?? "nil")")
+        return url
     }
 
     public func _appexSetDebugLogPath() {
-        defaults?.setValue(debugLogPath, forKey: OpenVPN.ProviderConfiguration.Keys.logPath.rawValue)
+        if let path = debugLogPath {
+            log.debug("Setting debug log path: \(path)")
+            defaults?.setValue(debugLogPath, forKey: OpenVPN.ProviderConfiguration.Keys.logPath.rawValue)
+        } else {
+            log.warning("No debug log path to set")
+        }
     }
 }
 
 extension UserDefaults {
     public func openVPNURLForDebugLog(appGroup: String) -> URL? {
         guard let path = string(forKey: OpenVPN.ProviderConfiguration.Keys.logPath.rawValue) else {
+            log.warning("No log path found in UserDefaults")
             return nil
         }
-        return FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup)?
+        
+        let url = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup)?
             .appendingPathComponent(path)
+            
+        if url == nil {
+            log.warning("Failed to create URL for log path: \(path)")
+        }
+        
+        return url
     }
 
     public fileprivate(set) var openVPNDataCount: DataCount? {
         get {
             guard let rawValue = openVPNDataCountArray else {
+                log.verbose("No data count in UserDefaults")
                 return nil
             }
             guard rawValue.count == 2 else {
+                log.warning("Invalid data count array in UserDefaults (expected 2 elements, got \(rawValue.count))")
                 return nil
             }
             return DataCount(rawValue[0], rawValue[1])
         }
         set {
             guard let newValue = newValue else {
+                log.verbose("Removing data count from UserDefaults")
                 openVPNRemoveDataCountArray()
                 return
             }
+            log.verbose("Setting data count in UserDefaults: received=\(newValue.received), sent=\(newValue.sent)")
             openVPNDataCountArray = [newValue.received, newValue.sent]
         }
     }
@@ -204,11 +271,13 @@ extension UserDefaults {
     public fileprivate(set) var openVPNServerConfiguration: OpenVPN.Configuration? {
         get {
             guard let raw = data(forKey: OpenVPN.ProviderConfiguration.Keys.serverConfiguration.rawValue) else {
+                log.verbose("No server configuration in UserDefaults")
                 return nil
             }
             let decoder = JSONDecoder()
             do {
                 let cfg = try decoder.decode(OpenVPN.Configuration.self, from: raw)
+                log.debug("Successfully decoded server configuration from UserDefaults")
                 return cfg
             } catch {
                 log.error("Unable to decode server configuration: \(error)")
@@ -217,11 +286,15 @@ extension UserDefaults {
         }
         set {
             guard let newValue = newValue else {
+                log.verbose("Removing server configuration from UserDefaults")
+                removeObject(forKey: OpenVPN.ProviderConfiguration.Keys.serverConfiguration.rawValue)
                 return
             }
+            
             let encoder = JSONEncoder()
             do {
                 let raw = try encoder.encode(newValue)
+                log.debug("Successfully encoded server configuration to UserDefaults")
                 set(raw, forKey: OpenVPN.ProviderConfiguration.Keys.serverConfiguration.rawValue)
             } catch {
                 log.error("Unable to encode server configuration: \(error)")
@@ -232,15 +305,18 @@ extension UserDefaults {
     public fileprivate(set) var openVPNLastError: TunnelKitOpenVPNError? {
         get {
             guard let rawValue = string(forKey: OpenVPN.ProviderConfiguration.Keys.lastError.rawValue) else {
+                log.verbose("No last error in UserDefaults")
                 return nil
             }
             return TunnelKitOpenVPNError(rawValue: rawValue)
         }
         set {
             guard let newValue = newValue else {
+                log.verbose("Removing last error from UserDefaults")
                 removeObject(forKey: OpenVPN.ProviderConfiguration.Keys.lastError.rawValue)
                 return
             }
+            log.debug("Setting last error in UserDefaults: \(newValue.rawValue)")
             set(newValue.rawValue, forKey: OpenVPN.ProviderConfiguration.Keys.lastError.rawValue)
         }
     }

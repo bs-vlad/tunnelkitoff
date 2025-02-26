@@ -1,4 +1,3 @@
-
 import Foundation
 
 /// A pair of received/sent bytes count.

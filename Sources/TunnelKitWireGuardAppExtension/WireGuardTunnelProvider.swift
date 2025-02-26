@@ -250,7 +250,7 @@ private extension String {
             isIPAddress(self, includedIn: cidr)
         }
     }
-}
+} 
 
 // Helper function to check if an IP is within a CIDR range
 private func isIPAddress(_ ip: String, includedIn cidr: String) -> Bool {
