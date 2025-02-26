@@ -702,7 +702,7 @@ extension OpenVPNTunnelProvider: OpenVPNSessionDelegate {
     private func bringNetworkUp(remoteAddress: String, localOptions: OpenVPN.Configuration, 
                           remoteOptions: OpenVPN.Configuration, completionHandler: @escaping (Error?) -> Void) {
         log.info("Building network settings...")
-        var newSettings = NetworkSettingsBuilder(remoteAddress: remoteAddress, 
+        let newSettings = NetworkSettingsBuilder(remoteAddress: remoteAddress, 
                                                localOptions: localOptions, 
                                                remoteOptions: remoteOptions)
         
