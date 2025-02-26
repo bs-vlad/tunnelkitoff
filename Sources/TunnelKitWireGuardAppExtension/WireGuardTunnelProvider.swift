@@ -70,7 +70,7 @@ open class WireGuardTunnelProvider: NEPacketTunnelProvider {
             cfg = try fromDictionary(WireGuard.ProviderConfiguration.self, providerConfiguration)
             tunnelConfiguration = cfg.configuration.tunnelConfiguration
             log.info("Successfully parsed provider configuration")
-            log.debug("Tunnel configuration: interface=\(tunnelConfiguration.interface.name ?? "unnamed"), peers=\(tunnelConfiguration.peers.count)")
+        
         } catch {
             log.error("Failed to parse protocol configuration: \(error)")
             completionHandler(TunnelKitWireGuardError.savedProtocolConfigurationIsInvalid)
