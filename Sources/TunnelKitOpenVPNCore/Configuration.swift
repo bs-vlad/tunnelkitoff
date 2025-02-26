@@ -9,6 +9,9 @@ extension OpenVPN {
 
     /// Split tunneling policy type.
     public enum SplitTunnelingPolicy: String, Codable {
+        /// Disable split tunneling (route all traffic through VPN)
+        case off
+        
         /// Route only specified networks through the VPN.
         case include
         
@@ -27,7 +30,7 @@ extension OpenVPN {
         /// Creates a new split tunneling configuration.
         ///
         /// - Parameters:
-        ///   - policy: The policy to use (include or exclude).
+        ///   - policy: The policy to use (off, include, or exclude).
         ///   - routes: The list of CIDRs to include or exclude.
         public init(policy: SplitTunnelingPolicy, routes: [String]) {
             self.policy = policy
