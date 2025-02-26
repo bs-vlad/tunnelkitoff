@@ -1,10 +1,8 @@
-
 import Foundation
 import SwiftyBeaver
 import TunnelKitCore
 import CTunnelKitCore
 import __TunnelKitUtils
-import TunnelKitLogging
 import TunnelKitLogging
 
 private let log = TKLogger.shared
@@ -279,6 +277,9 @@ extension OpenVPN {
             //
             var optXorMethod: XORMethod?
 
+            // Enhanced logging for configuration parsing
+            let lineCount = lines.count
+            log.info("Starting OpenVPN configuration parsing (\(lineCount) lines)")
             log.verbose("Configuration file:")
             for line in lines {
                 log.verbose(line)
@@ -295,9 +296,11 @@ extension OpenVPN {
 
                 // check blocks first
                 Regex.connection.enumerateSpacedComponents(in: line) { (_) in
+                    log.warning("Unsupported configuration: <connection> blocks")
                     unsupportedError = ConfigurationError.unsupportedConfiguration(option: "<connection> blocks")
                 }
                 Regex.fragment.enumerateSpacedComponents(in: line) { (_) in
+                    log.warning("Unsupported configuration: fragment")
                     unsupportedError = ConfigurationError.unsupportedConfiguration(option: "fragment")
                 }
                 Regex.connectionProxy.enumerateSpacedComponents(in: line) { (_) in
