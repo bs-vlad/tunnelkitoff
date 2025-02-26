@@ -58,6 +58,21 @@ open class WireGuardTunnelProvider: NEPacketTunnelProvider {
 
         // END: TunnelKit
 
+        // Handle DNS for split tunneling
+        if let splitTunneling = cfg.splitTunneling, splitTunneling.policy == .include {
+            // Only use DNS if VPN is handling all traffic or DNS server is in allowed IPs
+            let dnsServers = configuration.interface.dns ?? []
+            let shouldUseDNS = dnsServers.contains { server in
+                splitTunneling.routes.contains { cidr in
+                    server.isIncludedInAny(of: splitTunneling.routes)
+                }
+            }
+            
+            if !shouldUseDNS {
+                configuration.interface.dns = []
+            }
+        }
+
         // Start the tunnel
         adapter.start(tunnelConfiguration: tunnelConfiguration) { [weak self] adapterError in
             guard let self else {
@@ -224,5 +239,15 @@ private extension WireGuardTunnelProvider {
                 completiondHandler(.failure(StatsError.parseFailure))
             }
          }
+    }
+}
+
+private extension String {
+    func isIncludedInAny(of cidrs: [String]) -> Bool {
+        guard let ipAddress = IPv4Address(self) else { return false }
+        return cidrs.contains { cidr in
+            guard let network = IPv4AddressRange(from: cidr) else { return false }
+            return network.contains(ipAddress: ipAddress)
+        }
     }
 }

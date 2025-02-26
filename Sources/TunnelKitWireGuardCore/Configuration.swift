@@ -40,6 +40,29 @@ public protocol WireGuardConfigurationProviding {
 }
 
 extension WireGuard {
+    /// Split tunneling policy type
+    public enum SplitTunnelingPolicy: String, Codable {
+        /// Disable split tunneling (route all traffic through VPN)
+        case off
+        /// Route only specified networks through the VPN
+        case include
+        /// Route all traffic through VPN except specified networks (TODO)
+        case exclude
+    }
+    
+    /// Split tunneling configuration
+    public struct SplitTunneling: Codable, Equatable {
+        /// The policy for split tunneling
+        public let policy: SplitTunnelingPolicy
+        /// The list of CIDRs to include/exclude
+        public let routes: [String]
+        
+        public init(policy: SplitTunnelingPolicy, routes: [String]) {
+            self.policy = policy
+            self.routes = routes
+        }
+    }
+
     public struct ConfigurationBuilder: WireGuardConfigurationProviding {
         private static let defaultGateway4 = IPAddressRange(from: "0.0.0.0/0")!
 
@@ -256,6 +279,7 @@ extension WireGuard {
 
     public struct Configuration: Codable, Equatable, WireGuardConfigurationProviding {
         public let tunnelConfiguration: TunnelConfiguration
+        public var splitTunneling: SplitTunneling?
 
         public var interface: InterfaceConfiguration {
             tunnelConfiguration.interface

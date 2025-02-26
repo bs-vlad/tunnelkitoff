@@ -28,6 +28,8 @@ extension WireGuard {
 
         public let configuration: WireGuard.Configuration
 
+        public var splitTunneling: SplitTunneling?
+
         public var shouldDebug = false
 
         public var debugLogPath: String?
@@ -38,6 +40,7 @@ extension WireGuard {
             self.title = title
             self.appGroup = appGroup
             self.configuration = configuration
+            self.splitTunneling = configuration.splitTunneling
         }
 
         private init(_ title: String, appGroup: String, wgQuickConfig: String) throws {
