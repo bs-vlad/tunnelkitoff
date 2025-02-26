@@ -1,4 +1,3 @@
-
 import Foundation
 import NetworkExtension
 import TunnelKitCore
@@ -141,25 +140,64 @@ extension NetworkSettingsBuilder {
         }
         let ipv4Settings = NEIPv4Settings(addresses: [ipv4.address], subnetMasks: [ipv4.addressMask])
         var neRoutes: [NEIPv4Route] = []
+        var neExcludedRoutes: [NEIPv4Route] = []
 
-        // route all traffic to VPN?
-        if isIPv4Gateway {
-            let defaultRoute = NEIPv4Route.default()
-            defaultRoute.gatewayAddress = ipv4.defaultGateway
-            neRoutes.append(defaultRoute)
-            log.info("Routing.IPv4: Setting default gateway to \(ipv4.defaultGateway)")
-        }
+        // Handle split tunneling if configured
+        if let splitTunneling = localOptions.splitTunneling {
+            switch splitTunneling.policy {
+            case .include:
+                // Include mode - only route specified CIDRs through VPN
+                // Do not set default gateway
+                for cidr in splitTunneling.routes {
+                    // Only process IPv4 routes
+                    if !cidr.contains(":") {
+                        if let route = createIPv4Route(fromCIDR: cidr, defaultGateway: ipv4.defaultGateway) {
+                            neRoutes.append(route)
+                            log.info("SplitTunnel.Include.IPv4: Adding route \(route.destinationAddress)/\(route.destinationSubnetMask) -> \(route.gatewayAddress ?? "default")")
+                        }
+                    }
+                }
+                
+            case .exclude:
+                // Exclude mode - route all traffic through VPN except specified CIDRs
+                // Set default gateway
+                let defaultRoute = NEIPv4Route.default()
+                defaultRoute.gatewayAddress = ipv4.defaultGateway
+                neRoutes.append(defaultRoute)
+                log.info("SplitTunnel.Exclude.IPv4: Setting default gateway to \(ipv4.defaultGateway)")
+                
+                // Add excluded routes
+                for cidr in splitTunneling.routes {
+                    // Only process IPv4 routes
+                    if !cidr.contains(":") {
+                        if let route = createIPv4Route(fromCIDR: cidr, useNetGateway: true) {
+                            neExcludedRoutes.append(route)
+                            log.info("SplitTunnel.Exclude.IPv4: Excluding route \(route.destinationAddress)/\(route.destinationSubnetMask)")
+                        }
+                    }
+                }
+            }
+        } else {
+            // No split tunneling - use standard routing logic
+            // route all traffic to VPN?
+            if isIPv4Gateway {
+                let defaultRoute = NEIPv4Route.default()
+                defaultRoute.gatewayAddress = ipv4.defaultGateway
+                neRoutes.append(defaultRoute)
+                log.info("Routing.IPv4: Setting default gateway to \(ipv4.defaultGateway)")
+            }
 
-        for r in allRoutes4 {
-            let ipv4Route = NEIPv4Route(destinationAddress: r.destination, subnetMask: r.mask)
-            let gw = r.gateway ?? ipv4.defaultGateway
-            ipv4Route.gatewayAddress = gw
-            neRoutes.append(ipv4Route)
-            log.info("Routing.IPv4: Adding route \(r.destination)/\(r.mask) -> \(gw)")
+            for r in allRoutes4 {
+                let ipv4Route = NEIPv4Route(destinationAddress: r.destination, subnetMask: r.mask)
+                let gw = r.gateway ?? ipv4.defaultGateway
+                ipv4Route.gatewayAddress = gw
+                neRoutes.append(ipv4Route)
+                log.info("Routing.IPv4: Adding route \(r.destination)/\(r.mask) -> \(gw)")
+            }
         }
 
         ipv4Settings.includedRoutes = neRoutes
-        ipv4Settings.excludedRoutes = []
+        ipv4Settings.excludedRoutes = neExcludedRoutes
         return ipv4Settings
     }
 
@@ -169,25 +207,64 @@ extension NetworkSettingsBuilder {
         }
         let ipv6Settings = NEIPv6Settings(addresses: [ipv6.address], networkPrefixLengths: [ipv6.addressPrefixLength as NSNumber])
         var neRoutes: [NEIPv6Route] = []
+        var neExcludedRoutes: [NEIPv6Route] = []
 
-        // route all traffic to VPN?
-        if isIPv6Gateway {
-            let defaultRoute = NEIPv6Route.default()
-            defaultRoute.gatewayAddress = ipv6.defaultGateway
-            neRoutes.append(defaultRoute)
-            log.info("Routing.IPv6: Setting default gateway to \(ipv6.defaultGateway)")
-        }
+        // Handle split tunneling if configured
+        if let splitTunneling = localOptions.splitTunneling {
+            switch splitTunneling.policy {
+            case .include:
+                // Include mode - only route specified CIDRs through VPN
+                // Do not set default gateway
+                for cidr in splitTunneling.routes {
+                    // Only process IPv6 routes
+                    if cidr.contains(":") {
+                        if let route = createIPv6Route(fromCIDR: cidr, defaultGateway: ipv6.defaultGateway) {
+                            neRoutes.append(route)
+                            log.info("SplitTunnel.Include.IPv6: Adding route \(route.destinationAddress)/\(route.destinationNetworkPrefixLength) -> \(route.gatewayAddress ?? "default")")
+                        }
+                    }
+                }
+                
+            case .exclude:
+                // Exclude mode - route all traffic through VPN except specified CIDRs
+                // Set default gateway
+                let defaultRoute = NEIPv6Route.default()
+                defaultRoute.gatewayAddress = ipv6.defaultGateway
+                neRoutes.append(defaultRoute)
+                log.info("SplitTunnel.Exclude.IPv6: Setting default gateway to \(ipv6.defaultGateway)")
+                
+                // Add excluded routes
+                for cidr in splitTunneling.routes {
+                    // Only process IPv6 routes
+                    if cidr.contains(":") {
+                        if let route = createIPv6Route(fromCIDR: cidr, useNetGateway: true) {
+                            neExcludedRoutes.append(route)
+                            log.info("SplitTunnel.Exclude.IPv6: Excluding route \(route.destinationAddress)/\(route.destinationNetworkPrefixLength)")
+                        }
+                    }
+                }
+            }
+        } else {
+            // No split tunneling - use standard routing logic
+            // route all traffic to VPN?
+            if isIPv6Gateway {
+                let defaultRoute = NEIPv6Route.default()
+                defaultRoute.gatewayAddress = ipv6.defaultGateway
+                neRoutes.append(defaultRoute)
+                log.info("Routing.IPv6: Setting default gateway to \(ipv6.defaultGateway)")
+            }
 
-        for r in allRoutes6 {
-            let ipv6Route = NEIPv6Route(destinationAddress: r.destination, networkPrefixLength: r.prefixLength as NSNumber)
-            let gw = r.gateway ?? ipv6.defaultGateway
-            ipv6Route.gatewayAddress = gw
-            neRoutes.append(ipv6Route)
-            log.info("Routing.IPv6: Adding route \(r.destination)/\(r.prefixLength) -> \(gw)")
+            for r in allRoutes6 {
+                let ipv6Route = NEIPv6Route(destinationAddress: r.destination, networkPrefixLength: r.prefixLength as NSNumber)
+                let gw = r.gateway ?? ipv6.defaultGateway
+                ipv6Route.gatewayAddress = gw
+                neRoutes.append(ipv6Route)
+                log.info("Routing.IPv6: Adding route \(r.destination)/\(r.prefixLength) -> \(gw)")
+            }
         }
 
         ipv6Settings.includedRoutes = neRoutes
-        ipv6Settings.excludedRoutes = []
+        ipv6Settings.excludedRoutes = neExcludedRoutes
         return ipv6Settings
     }
 
@@ -320,5 +397,78 @@ extension NetworkSettingsBuilder {
 private extension Proxy {
     func neProxy() -> NEProxyServer {
         return NEProxyServer(address: address, port: Int(port))
+    }
+}
+
+extension NetworkSettingsBuilder {
+    
+    // MARK: - Helper methods for split tunneling
+    
+    /// Creates an IPv4 route from a CIDR notation string.
+    /// - Parameters:
+    ///   - cidr: The CIDR notation string (e.g., "192.168.1.0/24")
+    ///   - defaultGateway: The default gateway to use for the route
+    ///   - useNetGateway: If true, uses the network gateway instead of VPN gateway
+    /// - Returns: An NEIPv4Route if parsing is successful, otherwise nil
+    private func createIPv4Route(fromCIDR cidr: String, defaultGateway: String? = nil, useNetGateway: Bool = false) -> NEIPv4Route? {
+        let components = cidr.components(separatedBy: "/")
+        guard components.count == 2,
+              let prefixLength = Int(components[1]),
+              prefixLength >= 0 && prefixLength <= 32 else {
+            log.warning("Invalid CIDR format: \(cidr)")
+            return nil
+        }
+        
+        let ipAddress = components[0]
+        let subnetMask = createSubnetMask(prefixLength: prefixLength)
+        
+        let route = NEIPv4Route(destinationAddress: ipAddress, subnetMask: subnetMask)
+        
+        // For excluded routes in split tunneling, we want to use the system's default gateway
+        if !useNetGateway, let gateway = defaultGateway {
+            route.gatewayAddress = gateway
+        }
+        
+        return route
+    }
+    
+    /// Creates an IPv6 route from a CIDR notation string.
+    /// - Parameters:
+    ///   - cidr: The CIDR notation string (e.g., "2001:db8::/32")
+    ///   - defaultGateway: The default gateway to use for the route
+    ///   - useNetGateway: If true, uses the network gateway instead of VPN gateway
+    /// - Returns: An NEIPv6Route if parsing is successful, otherwise nil
+    private func createIPv6Route(fromCIDR cidr: String, defaultGateway: String? = nil, useNetGateway: Bool = false) -> NEIPv6Route? {
+        let components = cidr.components(separatedBy: "/")
+        guard components.count == 2,
+              let prefixLength = Int(components[1]),
+              prefixLength >= 0 && prefixLength <= 128 else {
+            log.warning("Invalid IPv6 CIDR format: \(cidr)")
+            return nil
+        }
+        
+        let ipAddress = components[0]
+        let route = NEIPv6Route(destinationAddress: ipAddress, networkPrefixLength: NSNumber(value: prefixLength))
+        
+        if !useNetGateway, let gateway = defaultGateway {
+            route.gatewayAddress = gateway
+        }
+        
+        return route
+    }
+    
+    /// Creates a subnet mask string from a prefix length.
+    /// - Parameter prefixLength: The prefix length (0-32)
+    /// - Returns: A dotted-decimal subnet mask string (e.g., "255.255.255.0" for prefix length 24)
+    private func createSubnetMask(prefixLength: Int) -> String {
+        let fullMask = 0xffffffff
+        let shiftedMask = prefixLength > 0 ? fullMask << (32 - prefixLength) : 0
+        
+        let octet1 = (shiftedMask >> 24) & 0xff
+        let octet2 = (shiftedMask >> 16) & 0xff
+        let octet3 = (shiftedMask >> 8) & 0xff
+        let octet4 = shiftedMask & 0xff
+        
+        return "\(octet1).\(octet2).\(octet3).\(octet4)"
     }
 }

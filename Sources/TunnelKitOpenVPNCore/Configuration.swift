@@ -7,6 +7,34 @@ private let log = TKLogger.shared
 
 extension OpenVPN {
 
+    /// Split tunneling policy type.
+    public enum SplitTunnelingPolicy: String, Codable {
+        /// Route only specified networks through the VPN.
+        case include
+        
+        /// Route all traffic through the VPN except for specified networks.
+        case exclude
+    }
+    
+    /// Split tunneling configuration.
+    public struct SplitTunneling: Codable, Equatable {
+        /// The policy for split tunneling.
+        public let policy: SplitTunnelingPolicy
+        
+        /// The list of CIDRs to include or exclude based on the policy.
+        public let routes: [String]
+        
+        /// Creates a new split tunneling configuration.
+        ///
+        /// - Parameters:
+        ///   - policy: The policy to use (include or exclude).
+        ///   - routes: The list of CIDRs to include or exclude.
+        public init(policy: SplitTunnelingPolicy, routes: [String]) {
+            self.policy = policy
+            self.routes = routes
+        }
+    }
+
     /// A pair of credentials for authentication.
     public struct Credentials: Codable, Equatable {
 
@@ -149,6 +177,9 @@ extension OpenVPN {
 
         /// Compression algorithm, disabled by default.
         public var compressionAlgorithm: CompressionAlgorithm?
+        
+        /// Split tunneling configuration, disabled by default.
+        public var splitTunneling: SplitTunneling?
 
         /// The CA for TLS negotiation (PEM format).
         public var ca: CryptoContainer?
@@ -310,6 +341,7 @@ extension OpenVPN {
                 digest: digest,
                 compressionFraming: compressionFraming,
                 compressionAlgorithm: compressionAlgorithm,
+                splitTunneling: splitTunneling,
                 ca: ca,
                 clientCertificate: clientCertificate,
                 clientKey: clientKey,
@@ -380,6 +412,9 @@ extension OpenVPN {
 
         /// - Seealso: `ConfigurationBuilder.compressionAlgorithm`
         public let compressionAlgorithm: CompressionAlgorithm?
+
+        /// - Seealso: `ConfigurationBuilder.splitTunneling`
+        public let splitTunneling: SplitTunneling?
 
         /// - Seealso: `ConfigurationBuilder.ca`
         public let ca: CryptoContainer?
@@ -563,6 +598,7 @@ extension OpenVPN.Configuration {
         builder.digest = digest ?? (withFallbacks ? Fallback.digest : nil)
         builder.compressionFraming = compressionFraming ?? (withFallbacks ? Fallback.compressionFraming : nil)
         builder.compressionAlgorithm = compressionAlgorithm ?? (withFallbacks ? Fallback.compressionAlgorithm : nil)
+        builder.splitTunneling = splitTunneling
         builder.ca = ca
         builder.clientCertificate = clientCertificate
         builder.clientKey = clientKey
@@ -626,6 +662,11 @@ extension OpenVPN.Configuration {
         }
         if let routes = routes6 {
             log.info("\tRoutes (IPv6): \(routes)")
+        }
+        
+        if let splitTunneling = splitTunneling {
+            log.info("\tSplit tunneling: \(splitTunneling.policy.rawValue) policy with \(splitTunneling.routes.count) routes")
+           
         }
 
         if let cipher = cipher {
