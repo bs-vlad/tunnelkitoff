@@ -745,8 +745,6 @@ extension OpenVPNTunnelProvider {
         return true
     }
 
-    // MARK: Logging
-
     private static var loggingInitialized = false
 
     private func configureLogging() {
