@@ -142,19 +142,19 @@ extension WireGuard {
 
         public var dnsHTTPSURL: URL? {
             get {
-                interface.dnsHTTPSURL
+                nil // Not supported in this WireGuard version
             }
             set {
-                interface.dnsHTTPSURL = newValue
+                // Not supported in this WireGuard version
             }
         }
 
         public var dnsTLSServerName: String? {
             get {
-                interface.dnsTLSServerName
+                nil // Not supported in this WireGuard version
             }
             set {
-                interface.dnsTLSServerName = newValue
+                // Not supported in this WireGuard version
             }
         }
 
@@ -320,11 +320,11 @@ extension WireGuard {
         }
 
         public var dnsHTTPSURL: URL? {
-            interface.dnsHTTPSURL
+            nil // Not supported in this WireGuard version
         }
 
         public var dnsTLSServerName: String? {
-            interface.dnsTLSServerName
+            nil // Not supported in this WireGuard version
         }
 
         public var mtu: UInt16? {

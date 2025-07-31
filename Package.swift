@@ -40,7 +40,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/SwiftyBeaver/SwiftyBeaver", from: "1.9.0"),
-        .package(url: "https://github.com/groupofstars/wireguard-apple", revision: "f8cdfd6a78972c1060b5815728629d6de4e68f9b")
+        .package(url: "https://github.com/roop/wireguard-apple.git", revision: "74d1524208cce9772a7e08a9bc29c6d8a45f0159")
     ],
     targets: [
         .target(
@@ -144,7 +144,7 @@ let package = Package(
             ]),
         .binaryTarget(
                     name: "openssl",
-                    path: "./Frameworks/openssl.xcframework"
+                    path: "./Frameworks/OpenSSL.xcframework"
                 ),
         .target(
             name: "CTunnelKitCore",

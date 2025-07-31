@@ -12,9 +12,9 @@
     {
       "identity" : "wireguard-apple",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/groupofstars/wireguard-apple",
+      "location" : "https://github.com/roop/wireguard-apple.git",
       "state" : {
-        "revision" : "f8cdfd6a78972c1060b5815728629d6de4e68f9b"
+        "revision" : "74d1524208cce9772a7e08a9bc29c6d8a45f0159"
       }
     }
   ],
