@@ -25,12 +25,26 @@ public final class TKLogger {
                       line: Int = #line) {
         log.debug(message(), file, function, line: line)
     }
+    
+    public func debug(_ tag: String, _ message: @autoclosure () -> Any,
+                      file: String = #file,
+                      function: String = #function,
+                      line: Int = #line) {
+        log.debug("[\(tag)] \(message())", file, function, line: line)
+    }
 
     public func error(_ message: @autoclosure () -> Any,
                       file: String = #file,
                       function: String = #function,
                       line: Int = #line) {
         log.error(message(), file, function, line: line)
+    }
+    
+    public func error(_ tag: String, _ message: @autoclosure () -> Any,
+                      file: String = #file,
+                      function: String = #function,
+                      line: Int = #line) {
+        log.error("[\(tag)] \(message())", file, function, line: line)
     }
 
     public func info(_ message: @autoclosure () -> Any,
@@ -39,6 +53,13 @@ public final class TKLogger {
                      line: Int = #line) {
         log.info(message(), file, function, line: line)
     }
+    
+    public func info(_ tag: String, _ message: @autoclosure () -> Any,
+                     file: String = #file,
+                     function: String = #function,
+                     line: Int = #line) {
+        log.info("[\(tag)] \(message())", file, function, line: line)
+    }
 
     public func warning(_ message: @autoclosure () -> Any,
                         file: String = #file,
@@ -46,12 +67,26 @@ public final class TKLogger {
                         line: Int = #line) {
         log.warning(message(), file, function, line: line)
     }
+    
+    public func warning(_ tag: String, _ message: @autoclosure () -> Any,
+                        file: String = #file,
+                        function: String = #function,
+                        line: Int = #line) {
+        log.warning("[\(tag)] \(message())", file, function, line: line)
+    }
 
     public func verbose(_ message: @autoclosure () -> Any,
                         file: String = #file,
                         function: String = #function,
                         line: Int = #line) {
         log.verbose(message(), file, function, line: line)
+    }
+    
+    public func verbose(_ tag: String, _ message: @autoclosure () -> Any,
+                        file: String = #file,
+                        function: String = #function,
+                        line: Int = #line) {
+        log.verbose("[\(tag)] \(message())", file, function, line: line)
     }
 
     public func setLogCallback(_ callback: @escaping (Date, String, Bool, SwiftyBeaver.Level) -> Void) {

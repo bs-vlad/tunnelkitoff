@@ -2,8 +2,10 @@ import NetworkExtension
 import SwiftyBeaver
 #if os(iOS)
 import SystemConfiguration.CaptiveNetwork
+import UIKit
 #elseif os(macOS)
 import CoreWLAN
+import Foundation
 #endif
 import TunnelKitCore
 import TunnelKitOpenVPNCore
@@ -123,46 +125,52 @@ open class OpenVPNTunnelProvider: NEPacketTunnelProvider {
     open override func startTunnel(options: [String: NSObject]? = nil, completionHandler: @escaping (Error?) -> Void) {
         connectionState = "starting"
         connectionStartTime = Date()
-        log.info("Starting OpenVPN tunnel...")
-        log.debug("Start options: \(options?.description ?? "none")")
+        log.info("TunnelKit.OpenVPN", "Starting OpenVPN tunnel (build: \(CoreConfiguration.versionIdentifier ?? "unknown"))")
+        log.debug("TunnelKit.OpenVPN", "Start options: \(options?.description ?? "none")")
+#if os(iOS)
+        log.debug("TunnelKit.OpenVPN", "System info: iOS \(UIDevice.current.systemVersion), device: \(UIDevice.current.model)")
+#elseif os(macOS)
+        log.debug("TunnelKit.OpenVPN", "System info: macOS \(ProcessInfo.processInfo.operatingSystemVersionString)")
+#endif
         
         // required configuration
         do {
             guard let tunnelProtocol = protocolConfiguration as? NETunnelProviderProtocol else {
                 let error = ConfigurationError.parameter(name: "protocolConfiguration")
-                log.error("Invalid protocol configuration: \(error)")
+                log.error("TunnelKit.OpenVPN", "Invalid protocol configuration: \(error)")
                 throw error
             }
             guard let serverAddress = tunnelProtocol.serverAddress else {
                 let error = ConfigurationError.parameter(name: "protocolConfiguration.serverAddress")
-                log.error("Missing server address: \(error)")
+                log.error("TunnelKit.OpenVPN", "Missing server address: \(error)")
                 throw error
             }
-            log.info("Server address: \(serverAddress.maskedDescription)")
+            log.info("TunnelKit.OpenVPN", "Target server address: \(serverAddress.maskedDescription)")
             
             guard let providerConfiguration = tunnelProtocol.providerConfiguration else {
                 let error = ConfigurationError.parameter(name: "protocolConfiguration.providerConfiguration")
-                log.error("Missing provider configuration: \(error)")
+                log.error("TunnelKit.OpenVPN", "Missing provider configuration: \(error)")
                 throw error
             }
-            log.debug("Provider configuration keys: \(providerConfiguration.keys)")
+            log.debug("TunnelKit.OpenVPN", "Provider configuration keys: \(providerConfiguration.keys)")
             
             cfg = try fromDictionary(OpenVPN.ProviderConfiguration.self, providerConfiguration)
-            log.info("Successfully parsed provider configuration")
+            log.info("TunnelKit.OpenVPN", "Successfully parsed provider configuration")
+            log.debug("TunnelKit.OpenVPN", "Provider config: masksPrivateData=\(cfg.masksPrivateData), resolvedRemotes=\(cfg.configuration.remotes?.count ?? 0)")
             
         } catch let cfgError as ConfigurationError {
             switch cfgError {
             case .parameter(let name):
-                log.error("Tunnel configuration incomplete: \(name)")
+                log.error("TunnelKit.OpenVPN", "Tunnel configuration incomplete: \(name)")
 
             default:
-                log.error("Tunnel configuration error: \(cfgError)")
+                log.error("TunnelKit.OpenVPN", "Tunnel configuration error: \(cfgError)")
             }
             connectionState = "configuration_error"
             completionHandler(cfgError)
             return
         } catch {
-            log.error("Unexpected error in tunnel configuration: \(error)")
+            log.error("TunnelKit.OpenVPN", "Unexpected error in tunnel configuration: \(error)")
             connectionState = "unexpected_error"
             completionHandler(error)
             return
@@ -175,65 +183,71 @@ open class OpenVPNTunnelProvider: NEPacketTunnelProvider {
         log.info("")
         log.info(logSeparator)
         log.info("")
-        log.info("OpenVPN tunnel starting - \(Date())")
+        log.info("TunnelKit.OpenVPN", "OpenVPN tunnel starting - \(Date())")
 
         // override library configuration
         CoreConfiguration.masksPrivateData = cfg.masksPrivateData
         if let versionIdentifier = cfg.versionIdentifier {
             CoreConfiguration.versionIdentifier = versionIdentifier
-            log.debug("Using version identifier: \(versionIdentifier)")
+            log.debug("TunnelKit.OpenVPN", "Using version identifier: \(versionIdentifier)")
         }
 
         // optional credentials
         let credentials: OpenVPN.Credentials?
         if let username = protocolConfiguration.username, let passwordReference = protocolConfiguration.passwordReference {
-            log.debug("Retrieving credentials for username: \(username.maskedDescription)")
+            log.debug("TunnelKit.OpenVPN", "Retrieving credentials for username: \(username.maskedDescription)")
             
             do {
                 let password = try Keychain.password(forReference: passwordReference)
                 credentials = OpenVPN.Credentials(username, password)
-                log.debug("Successfully retrieved credentials from keychain")
+                log.debug("TunnelKit.OpenVPN", "Successfully retrieved credentials from keychain for user: \(username.maskedDescription)")
             } catch {
-                log.error("Failed to retrieve password from keychain reference: \(error)")
+                log.error("TunnelKit.OpenVPN", "Failed to retrieve password from keychain reference: \(error)")
                 connectionState = "credentials_error"
                 completionHandler(ConfigurationError.credentials(details: "Keychain.password(forReference:)"))
                 return
             }
         } else {
-            log.debug("No credentials provided in configuration")
+            log.debug("TunnelKit.OpenVPN", "No credentials provided in configuration - using certificate authentication")
             credentials = nil
         }
 
-        log.info("Starting tunnel...")
+        log.info("TunnelKit.OpenVPN", "Starting tunnel initialization phase...")
         connectionState = "initializing"
         cfg._appexSetLastError(nil)
 
         guard OpenVPN.prepareRandomNumberGenerator(seedLength: prngSeedLength) else {
-            log.error("Failed to initialize PRNG with seed length \(prngSeedLength)")
+            log.error("TunnelKit.OpenVPN", "Failed to initialize PRNG with seed length \(prngSeedLength)")
             connectionState = "prng_error"
             completionHandler(ConfigurationError.prngInitialization)
             return
         }
-        log.debug("Successfully initialized PRNG")
+        log.debug("TunnelKit.OpenVPN", "Successfully initialized PRNG with seed length \(prngSeedLength)")
 
         if let appVersion = appVersion {
-            log.info("App version: \(appVersion)")
+            log.info("TunnelKit.OpenVPN", "Host app version: \(appVersion)")
         }
         cfg.print()
 
         // prepare to pick endpoints
-        log.debug("Initializing connection strategy")
+        log.debug("TunnelKit.OpenVPN", "Initializing connection strategy")
         strategy = ConnectionStrategy(configuration: cfg.configuration)
-        log.debug("Connection strategy initialized with \(cfg.configuration.remotes?.count ?? 0) potential endpoints")
+        let remoteCount = cfg.configuration.remotes?.count ?? 0
+        log.info("TunnelKit.OpenVPN", "Connection strategy initialized with \(remoteCount) potential endpoints")
+        if let remotes = cfg.configuration.remotes {
+            for (index, remote) in remotes.enumerated() {
+                log.debug("TunnelKit.OpenVPN", "Remote[\(index)]: \(remote.address.maskedDescription):\(remote.proto.port) (\(remote.proto.socketType))")
+            }
+        }
 
         let session: OpenVPNSession
         do {
-            log.debug("Creating OpenVPN session...")
+            log.debug("TunnelKit.OpenVPN", "Creating OpenVPN session with queue and caches at: \(cachesURL.path)")
             session = try OpenVPNSession(queue: tunnelQueue, configuration: cfg.configuration, cachesURL: cachesURL)
-            log.debug("OpenVPN session created successfully")
+            log.info("TunnelKit.OpenVPN", "OpenVPN session created successfully")
             refreshDataCount()
         } catch {
-            log.error("Failed to create OpenVPN session: \(error)")
+            log.error("TunnelKit.OpenVPN", "Failed to create OpenVPN session: \(error)")
             connectionState = "session_creation_error"
             completionHandler(error)
             return
@@ -245,23 +259,24 @@ open class OpenVPNTunnelProvider: NEPacketTunnelProvider {
         logCurrentSSID()
         connectionAttempts = 0
         connectionState = "connecting"
+        log.info("TunnelKit.OpenVPN", "Starting connection process after successful initialization")
 
         pendingStartHandler = completionHandler
         tunnelQueue.sync {
-            log.debug("Dispatching connection attempt to tunnel queue")
+            log.debug("TunnelKit.OpenVPN", "Dispatching connection attempt to tunnel queue")
             self.connectTunnel()
         }
     }
 
     open override func stopTunnel(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
         pendingStartHandler = nil
-        log.info("Stopping tunnel with reason: \(reason.rawValue)")
-        log.debug("Stop reason details: \(self.describeStopReason(reason))")
+        log.info("TunnelKit.OpenVPN", "Stopping tunnel with reason: \(reason.rawValue) (\(self.describeStopReason(reason)))")
+        log.debug("TunnelKit.OpenVPN", "Connection was in state: \(connectionState), attempts: \(connectionAttempts)")
         connectionState = "stopping"
         cfg._appexSetLastError(nil)
 
         guard let session = session else {
-            log.warning("Stop tunnel called but no active session exists")
+            log.warning("TunnelKit.OpenVPN", "Stop tunnel called but no active session exists")
             connectionState = "stopped"
             flushLog()
             completionHandler()
@@ -277,14 +292,14 @@ open class OpenVPNTunnelProvider: NEPacketTunnelProvider {
             guard let pendingHandler = weakSelf.pendingStopHandler else {
                 return
             }
-            log.warning("Tunnel not responding after \(weakSelf.shutdownTimeout) milliseconds, forcing stop")
+            log.warning("TunnelKit.OpenVPN", "Tunnel not responding after \(weakSelf.shutdownTimeout) milliseconds, forcing stop")
             weakSelf.connectionState = "force_stopped"
             weakSelf.flushLog()
             pendingHandler()
             self?.forceExitOnMac()
         }
         tunnelQueue.sync {
-            log.debug("Dispatching shutdown to tunnel queue")
+            log.debug("TunnelKit.OpenVPN", "Dispatching shutdown to tunnel queue")
             session.shutdown(error: nil)
         }
     }
@@ -292,11 +307,11 @@ open class OpenVPNTunnelProvider: NEPacketTunnelProvider {
     // MARK: Wake/Sleep (debugging placeholders)
     
     open override func wake() {
-        log.info("Wake signal received")
+        log.info("TunnelKit.OpenVPN", "Wake signal received - connection may resume")
     }
 
     open override func sleep(completionHandler: @escaping () -> Void) {
-        log.info("Sleep signal received")
+        log.info("TunnelKit.OpenVPN", "Sleep signal received - connection may pause")
         completionHandler()
     }
 
@@ -342,10 +357,14 @@ open class OpenVPNTunnelProvider: NEPacketTunnelProvider {
 
     private func connectTunnel(upgradedSocket: GenericSocket? = nil) {
         connectionAttempts += 1
-        log.info("Creating link session (attempt #\(connectionAttempts))")
+        log.info("TunnelKit.OpenVPN", "Creating link session (attempt #\(connectionAttempts))")
         
         let elapsed = Date().timeIntervalSince(connectionStartTime ?? Date())
-        log.debug("Connection attempt after \(String(format: "%.2f", elapsed))s since start")
+        log.debug("TunnelKit.OpenVPN", "Connection attempt #\(connectionAttempts) after \(String(format: "%.2f", elapsed))s since start")
+        
+        if upgradedSocket != nil {
+            log.debug("TunnelKit.OpenVPN", "Using upgraded socket for reconnection")
+        }
 
         // reuse upgraded socket
         if let upgradedSocket = upgradedSocket, !upgradedSocket.isShutdown {

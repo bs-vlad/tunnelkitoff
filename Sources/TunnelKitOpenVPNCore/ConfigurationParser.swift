@@ -296,17 +296,19 @@ extension OpenVPN {
 
                 // check blocks first
                 Regex.connection.enumerateSpacedComponents(in: line) { (_) in
-                    log.warning("Unsupported configuration: <connection> blocks")
+                    log.warning("TunnelKit.Config", "Unsupported configuration: <connection> blocks - this may cause connection issues")
                     unsupportedError = ConfigurationError.unsupportedConfiguration(option: "<connection> blocks")
                 }
                 Regex.fragment.enumerateSpacedComponents(in: line) { (_) in
-                    log.warning("Unsupported configuration: fragment")
+                    log.warning("TunnelKit.Config", "Unsupported configuration: fragment - this may affect MTU discovery")
                     unsupportedError = ConfigurationError.unsupportedConfiguration(option: "fragment")
                 }
                 Regex.connectionProxy.enumerateSpacedComponents(in: line) { (_) in
+                    log.warning("TunnelKit.Config", "Unsupported proxy configuration: \(line)")
                     unsupportedError = ConfigurationError.unsupportedConfiguration(option: "proxy: \"\(line)\"")
                 }
                 Regex.externalFiles.enumerateSpacedComponents(in: line) { (_) in
+                    log.warning("TunnelKit.Config", "Unsupported external file reference: \(line)")
                     unsupportedError = ConfigurationError.unsupportedConfiguration(option: "external file: \"\(line)\"")
                 }
                 if line.contains("mtu") || line.contains("mssfix") {
@@ -320,6 +322,7 @@ extension OpenVPN {
                     isContinuation = ($0.first == "2")
                 }
                 guard !isContinuation else {
+                    log.error("TunnelKit.Config", "Multipart PUSH_REPLY detected - this configuration cannot be parsed")
                     throw ConfigurationError.continuationPushReply
                 }
 

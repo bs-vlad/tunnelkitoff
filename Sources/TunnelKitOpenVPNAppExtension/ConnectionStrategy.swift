@@ -23,10 +23,15 @@ class ConnectionStrategy {
 
     init(configuration: OpenVPN.Configuration) {
         guard let remotes = configuration.processedRemotes, !remotes.isEmpty else {
+            log.error("TunnelKit.Strategy", "No remotes provided in configuration")
             fatalError("No remotes provided")
         }
         self.remotes = remotes.map(ResolvedRemote.init)
         currentRemoteIndex = 0
+        log.info("TunnelKit.Strategy", "Initialized connection strategy with \(remotes.count) remotes")
+        for (index, remote) in remotes.enumerated() {
+            log.debug("TunnelKit.Strategy", "Remote[\(index)]: \(remote.maskedDescription):\(remote.proto.port) (\(remote.proto.socketType))")
+        }
     }
 
     func hasEndpoints() -> Bool {
@@ -39,19 +44,22 @@ class ConnectionStrategy {
     @discardableResult
     func tryNextEndpoint() -> Bool {
         guard let remote = currentRemote else {
+            log.warning("TunnelKit.Strategy", "No current remote available for endpoint selection")
             return false
         }
-        log.debug("Try next endpoint in current remote: \(remote.maskedDescription)")
+        log.debug("TunnelKit.Strategy", "Trying next endpoint in current remote[\(currentRemoteIndex)]: \(remote.maskedDescription)")
         if remote.nextEndpoint() {
+            log.info("TunnelKit.Strategy", "Selected endpoint: \(remote.currentEndpoint?.maskedDescription ?? "unknown")")
             return true
         }
 
-        log.debug("Exhausted endpoints, try next remote")
+        log.info("TunnelKit.Strategy", "Exhausted endpoints for remote[\(currentRemoteIndex)], trying next remote")
         currentRemoteIndex += 1
-        guard let _ = currentRemote else {
-            log.debug("Exhausted remotes, giving up")
+        guard let nextRemote = currentRemote else {
+            log.warning("TunnelKit.Strategy", "Exhausted all \(remotes.count) remotes, connection failed")
             return false
         }
+        log.info("TunnelKit.Strategy", "Switched to remote[\(currentRemoteIndex)]: \(nextRemote.maskedDescription)")
         return true
     }
 
@@ -61,26 +69,27 @@ class ConnectionStrategy {
         queue: DispatchQueue,
         completionHandler: @escaping (Result<GenericSocket, TunnelKitOpenVPNError>) -> Void) {
         guard let remote = currentRemote else {
+            log.error("TunnelKit.Strategy", "No current remote available for socket creation")
             completionHandler(.failure(.exhaustedEndpoints))
             return
         }
         if remote.isResolved, let endpoint = remote.currentEndpoint {
-            log.debug("Pick current endpoint: \(endpoint.maskedDescription)")
+            log.info("TunnelKit.Strategy", "Creating socket to resolved endpoint: \(endpoint.maskedDescription) (\(endpoint.proto.socketType))")
             let socket = provider.createSocket(to: endpoint)
             completionHandler(.success(socket))
             return
         }
 
-        log.debug("No resolved endpoints, will resort to DNS resolution")
-        log.debug("DNS resolve address: \(remote.maskedDescription)")
+        log.info("TunnelKit.Strategy", "No resolved endpoints available, initiating DNS resolution")
+        log.debug("TunnelKit.Strategy", "DNS resolution target: \(remote.maskedDescription) (timeout: \(timeout)ms)")
 
         remote.resolve(timeout: timeout, queue: queue) {
             guard let endpoint = remote.currentEndpoint else {
-                log.error("No endpoints available")
+                log.error("TunnelKit.Strategy", "DNS resolution failed - no endpoints available for \(remote.maskedDescription)")
                 completionHandler(.failure(.dnsFailure))
                 return
             }
-            log.debug("Pick current endpoint: \(endpoint.maskedDescription)")
+            log.info("TunnelKit.Strategy", "DNS resolution successful - creating socket to: \(endpoint.maskedDescription) (\(endpoint.proto.socketType))")
             let socket = provider.createSocket(to: endpoint)
             completionHandler(.success(socket))
         }

@@ -574,7 +574,7 @@ extension OpenVPN {
                     do {
                         return try $0.withRandomPrefixLength(randomPrefixLength)
                     } catch {
-                        log.error("Could not prepend random prefix: \(error)")
+                        log.error("TunnelKit.Config", "Could not prepend random prefix to hostname: \(error)")
                         return nil
                     }
                 }
@@ -650,58 +650,58 @@ extension OpenVPN.Configuration {
     public func print(isLocal: Bool) {
         if isLocal {
             guard let remotes = remotes else {
-                log.error("No remotes set")
+                log.error("TunnelKit.Config", "No remote servers configured - connection impossible")
                 fatalError("No remotes set")
             }
-            log.info("\tRemotes: \(remotes)")
+            log.info("TunnelKit.Config", "Configured remotes: \(remotes)")
         }
 
         if !isLocal {
-            log.info("\tIPv4: \(ipv4?.description ?? "not configured")")
-            log.info("\tIPv6: \(ipv6?.description ?? "not configured")")
+            log.info("TunnelKit.Config", "IPv4 settings: \(ipv4?.description ?? "not configured")")
+            log.info("TunnelKit.Config", "IPv6 settings: \(ipv6?.description ?? "not configured")")
         }
         if let routes = routes4 {
-            log.info("\tRoutes (IPv4): \(routes)")
+            log.info("TunnelKit.Config", "IPv4 routes: \(routes)")
         }
         if let routes = routes6 {
-            log.info("\tRoutes (IPv6): \(routes)")
+            log.info("TunnelKit.Config", "IPv6 routes: \(routes)")
         }
         
         if let splitTunneling = splitTunneling {
-            log.info("\tSplit tunneling: \(splitTunneling.policy.rawValue) policy with \(splitTunneling.routes.count) routes")
+            log.info("TunnelKit.Config", "Split tunneling: \(splitTunneling.policy.rawValue) policy with \(splitTunneling.routes.count) routes")
            
         }
 
         if let cipher = cipher {
-            log.info("\tCipher: \(cipher)")
+            log.info("TunnelKit.Config", "Primary cipher: \(cipher)")
         } else if isLocal {
-            log.info("\tCipher: \(fallbackCipher)")
+            log.info("TunnelKit.Config", "Fallback cipher: \(fallbackCipher)")
         }
         if let digest = digest {
-            log.info("\tDigest: \(digest)")
+            log.info("TunnelKit.Config", "Primary digest: \(digest)")
         } else if isLocal {
-            log.info("\tDigest: \(fallbackDigest)")
+            log.info("TunnelKit.Config", "Fallback digest: \(fallbackDigest)")
         }
         if let compressionFraming = compressionFraming {
-            log.info("\tCompression framing: \(compressionFraming)")
+            log.info("TunnelKit.Config", "Primary compression framing: \(compressionFraming)")
         } else if isLocal {
-            log.info("\tCompression framing: \(fallbackCompressionFraming)")
+            log.info("TunnelKit.Config", "Fallback compression framing: \(fallbackCompressionFraming)")
         }
         if let compressionAlgorithm = compressionAlgorithm {
-            log.info("\tCompression algorithm: \(compressionAlgorithm)")
+            log.info("TunnelKit.Config", "Primary compression algorithm: \(compressionAlgorithm)")
         } else if isLocal {
-            log.info("\tCompression algorithm: \(fallbackCompressionAlgorithm)")
+            log.info("TunnelKit.Config", "Fallback compression algorithm: \(fallbackCompressionAlgorithm)")
         }
 
         if isLocal {
-            log.info("\tUsername authentication: \(authUserPass ?? false)")
+            log.info("TunnelKit.Config", "Username authentication: \(authUserPass ?? false)")
             if let _ = clientCertificate {
-                log.info("\tClient verification: enabled")
+                log.info("TunnelKit.Config", "Client certificate verification: enabled")
             } else {
-                log.info("\tClient verification: disabled")
+                log.info("TunnelKit.Config", "Client certificate verification: disabled")
             }
             if let tlsWrap = tlsWrap {
-                log.info("\tTLS wrapping: \(tlsWrap.strategy)")
+                log.info("TunnelKit.Config", "TLS wrapping strategy: \(tlsWrap.strategy)")
             } else {
                 log.info("\tTLS wrapping: disabled")
             }

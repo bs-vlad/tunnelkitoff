@@ -2,6 +2,7 @@ import Foundation
 import SwiftyBeaver
 import TunnelKitCore
 import TunnelKitOpenVPNCore
+import TunnelKitOpenVPNManager
 import CTunnelKitCore
 import CTunnelKitOpenVPNProtocol
 import TunnelKitLogging
@@ -321,10 +322,12 @@ public class OpenVPNSession: Session {
         }
 
         guard !negotiationKey.didHardResetTimeOut(link: link) else {
+            log.warning("TunnelKit.Protocol", "Hard reset timeout - attempting reconnection")
             doReconnect(error: OpenVPNError.negotiationTimeout)
             return
         }
         guard !negotiationKey.didNegotiationTimeOut(link: link) else {
+            log.error("TunnelKit.Protocol", "Negotiation timeout - shutting down connection")
             doShutdown(error: OpenVPNError.negotiationTimeout)
             return
         }
@@ -349,12 +352,13 @@ public class OpenVPNSession: Session {
         let loopedLink = link
         loopedLink?.setReadHandler(queue: queue) { [weak self] (newPackets, error) in
             guard self?.link === loopedLink else {
-                log.warning("Ignoring read from outdated LINK")
+                log.warning("TunnelKit.Protocol", "Ignoring read from outdated LINK")
                 return
             }
             if let error = error {
-                log.error("Failed LINK read: \(error)")
-
+                log.error("TunnelKit.Protocol", "Failed LINK read - connection may be broken: \(error)")
+                let isConnected = self?.negotiationKey.controlState == .connected
+                log.debug("TunnelKit.Protocol", "Link state when error occurred: connected=\(isConnected)")
                 // XXX: why isn't the tunnel shutting down at this point?
                 return
             }
@@ -372,7 +376,7 @@ public class OpenVPNSession: Session {
     private func loopTunnel() {
         tunnel?.setReadHandler(queue: queue) { [weak self] (newPackets, error) in
             if let error = error {
-                log.error("Failed TUN read: \(error)")
+                log.error("TunnelKit.Protocol", "Failed TUN read - tunnel interface error: \(error)")
                 return
             }
 
@@ -386,9 +390,11 @@ public class OpenVPNSession: Session {
     // Ruby: recv_link
     private func receiveLink(packets: [Data]) {
         guard shouldHandlePackets() else {
-            log.warning("Discarding \(packets.count) LINK packets (should not handle)")
+            log.warning("TunnelKit.Protocol", "Discarding \(packets.count) LINK packets (should not handle) - stopping=\(isStopping), keys=\(keys.count)")
             return
         }
+        
+        log.verbose("TunnelKit.Protocol", "Processing \(packets.count) packets from LINK")
 
         lastPing.inbound = Date()
 
@@ -486,9 +492,10 @@ public class OpenVPNSession: Session {
     // Ruby: recv_tun
     private func receiveTunnel(packets: [Data]) {
         guard shouldHandlePackets() else {
-            log.warning("Discarding \(packets.count) TUN packets (should not handle)")
+            log.warning("TunnelKit.Protocol", "Discarding \(packets.count) TUN packets (should not handle) - stopping=\(isStopping), keys=\(keys.count)")
             return
         }
+        log.verbose("TunnelKit.Protocol", "Sending \(packets.count) packets from TUN to LINK")
         sendDataPackets(packets)
     }
 
@@ -544,7 +551,7 @@ public class OpenVPNSession: Session {
 
     // Ruby: hard_reset
     private func hardReset() {
-        log.debug("Send hard reset")
+        log.info("TunnelKit.Protocol", "Initiating hard reset - starting OpenVPN handshake")
 
         resetControlChannel(forNewSession: true)
         continuatedPushReplyMessage = nil
@@ -552,13 +559,14 @@ public class OpenVPNSession: Session {
         negotiationKeyIdx = 0
         let newKey = OpenVPN.SessionKey(id: UInt8(negotiationKeyIdx), timeout: CoreConfiguration.OpenVPN.negotiationTimeout)
         keys[negotiationKeyIdx] = newKey
-        log.debug("Negotiation key index is \(negotiationKeyIdx)")
+        log.debug("TunnelKit.Protocol", "Negotiation key index reset to \(negotiationKeyIdx), timeout: \(CoreConfiguration.OpenVPN.negotiationTimeout)s")
 
         let payload = hardResetPayload() ?? Data()
         negotiationKey.state = .hardReset
         guard !keys.isEmpty else {
             fatalError("Main loop must follow hard reset, keys are empty!")
         }
+        log.debug("TunnelKit.Protocol", "Sending HARD_RESET_CLIENT_V2 with payload size: \(payload.count) bytes")
         loopNegotiation()
         enqueueControlPackets(code: .hardResetClientV2, key: UInt8(negotiationKeyIdx), payload: payload)
     }
@@ -566,17 +574,17 @@ public class OpenVPNSession: Session {
     private func hardResetPayload() -> Data? {
         guard !(configuration.usesPIAPatches ?? false) else {
             guard let _ = configuration.ca else {
-                log.error("Configuration doesn't have a CA")
+                log.error("TunnelKit.Protocol", "Configuration doesn't have a CA for PIA patches")
                 return nil
             }
             let caMD5: String
             do {
                 caMD5 = try TLSBox.md5(forCertificatePath: caURL.path)
             } catch {
-                log.error("CA MD5 could not be computed, skipping custom HARD_RESET")
+                log.error("TunnelKit.Protocol", "CA MD5 could not be computed, skipping custom HARD_RESET: \(error)")
                 return nil
             }
-            log.debug("CA MD5 is: \(caMD5)")
+            log.debug("TunnelKit.Protocol", "Using PIA patches with CA MD5: \(caMD5)")
             return try? PIAHardReset(
                 caMd5Digest: caMD5,
                 cipher: configuration.fallbackCipher,
@@ -946,6 +954,11 @@ public class OpenVPNSession: Session {
         guard let remoteAddress = link?.remoteAddress else {
             fatalError("Could not resolve link remote address")
         }
+        
+        log.info("TunnelKit.Protocol", "OpenVPN connection established successfully!")
+        log.info("TunnelKit.Protocol", "Connected to: \(remoteAddress) via \(link?.remoteProtocol ?? "unknown")")
+        log.debug("TunnelKit.Protocol", "Connection details: IPv4=\(reply.options.ipv4?.description ?? "none"), IPv6=\(reply.options.ipv6?.description ?? "none")")
+        
         delegate?.sessionDidStart(
             self,
             remoteAddress: remoteAddress,
@@ -1201,9 +1214,26 @@ public class OpenVPNSession: Session {
 
     private func deferStop(_ method: StopMethod, _ error: Error?) {
         guard !isStopping else {
+            log.debug("TunnelKit.Protocol", "Stop already in progress, ignoring deferStop request")
             return
         }
         isStopping = true
+        
+        // Log detailed error information
+        if let error = error {
+            log.error("TunnelKit.Protocol", "Deferring stop with method: \(method), error: \(error)")
+            
+            // Log specific OpenVPN error details
+            if let ovpnError = error as? OpenVPNError {
+                logOpenVPNError(ovpnError)
+            } else if let tkError = error as? TunnelKitOpenVPNError {
+                logTunnelKitError(tkError)
+            } else {
+                log.error("TunnelKit.Protocol", "Generic error type: \(type(of: error))")
+            }
+        } else {
+            log.info("TunnelKit.Protocol", "Deferring clean stop with method: \(method)")
+        }
 
         let completion = { [weak self] in
             switch method {
@@ -1238,21 +1268,101 @@ public class OpenVPNSession: Session {
 
     private func doShutdown(error: Error?) {
         if let error = error {
-            log.error("Trigger shutdown (error: \(error))")
+            log.error("TunnelKit.Protocol", "Triggering shutdown due to error: \(error)")
         } else {
-            log.info("Trigger shutdown on request")
+            log.info("TunnelKit.Protocol", "Triggering shutdown on request")
         }
         stopError = error
+        log.debug("TunnelKit.Protocol", "Notifying delegate: sessionDidStop(shouldReconnect: false)")
         delegate?.sessionDidStop(self, withError: error, shouldReconnect: false)
     }
 
     private func doReconnect(error: Error?) {
         if let error = error {
-            log.error("Trigger reconnection (error: \(error))")
+            log.error("TunnelKit.Protocol", "Triggering reconnection due to error: \(error)")
         } else {
-            log.info("Trigger reconnection on request")
+            log.info("TunnelKit.Protocol", "Triggering reconnection on request")
         }
         stopError = error
+        log.debug("TunnelKit.Protocol", "Notifying delegate: sessionDidStop(shouldReconnect: true)")
         delegate?.sessionDidStop(self, withError: error, shouldReconnect: true)
+    }
+    
+    // MARK: Error Logging Helpers
+    
+    private func logOpenVPNError(_ error: OpenVPNError) {
+        switch error {
+        case .negotiationTimeout:
+            log.error("TunnelKit.Protocol", "OpenVPN Error: Negotiation timeout - server not responding to handshake")
+        case .missingSessionId:
+            log.error("TunnelKit.Protocol", "OpenVPN Error: Missing session ID - protocol handshake incomplete")
+        case .sessionMismatch:
+            log.error("TunnelKit.Protocol", "OpenVPN Error: Session ID mismatch - possible MITM or server restart")
+        case .badKey:
+            log.error("TunnelKit.Protocol", "OpenVPN Error: Bad encryption key - key exchange failed")
+        case .controlChannel(let message):
+            log.error("TunnelKit.Protocol", "OpenVPN Error: Control channel failure - \(message)")
+        case .wrongControlDataPrefix:
+            log.error("TunnelKit.Protocol", "OpenVPN Error: Wrong control data prefix - packet corruption")
+        case .badCredentials:
+            log.error("TunnelKit.Protocol", "OpenVPN Error: Authentication failed - invalid username/password")
+        case .malformedPushReply:
+            log.error("TunnelKit.Protocol", "OpenVPN Error: Malformed PUSH_REPLY - server configuration error")
+        case .failedLinkWrite:
+            log.error("TunnelKit.Protocol", "OpenVPN Error: Failed link write - network unreachable")
+        case .pingTimeout:
+            log.error("TunnelKit.Protocol", "OpenVPN Error: Ping timeout - connection lost")
+        case .staleSession:
+            log.error("TunnelKit.Protocol", "OpenVPN Error: Stale session - unrecoverable state")
+        case .serverCompression:
+            log.error("TunnelKit.Protocol", "OpenVPN Error: Server compression - unsupported feature")
+        case .noRouting:
+            log.error("TunnelKit.Protocol", "OpenVPN Error: No routing info - server didn't provide network config")
+        case .serverShutdown:
+            log.error("TunnelKit.Protocol", "OpenVPN Error: Server shutdown - explicit exit notify received")
+        case .native(let code):
+            log.error("TunnelKit.Protocol", "OpenVPN Error: Native error code \(code.rawValue) - low-level failure")
+        }
+    }
+    
+    private func logTunnelKitError(_ error: TunnelKitOpenVPNError) {
+        switch error {
+        case .dnsFailure:
+            log.error("TunnelKit.Protocol", "TunnelKit Error: DNS failure - cannot resolve server hostname")
+        case .exhaustedEndpoints:
+            log.error("TunnelKit.Protocol", "TunnelKit Error: Exhausted endpoints - all servers failed")
+        case .socketActivity:
+            log.error("TunnelKit.Protocol", "TunnelKit Error: Socket activity - connection failed to establish")
+        case .authentication:
+            log.error("TunnelKit.Protocol", "TunnelKit Error: Authentication - credential verification failed")
+        case .tlsInitialization:
+            log.error("TunnelKit.Protocol", "TunnelKit Error: TLS initialization - certificate/key invalid")
+        case .tlsServerVerification:
+            log.error("TunnelKit.Protocol", "TunnelKit Error: TLS server verification - certificate mismatch")
+        case .tlsHandshake:
+            log.error("TunnelKit.Protocol", "TunnelKit Error: TLS handshake - SSL/TLS negotiation failed")
+        case .encryptionInitialization:
+            log.error("TunnelKit.Protocol", "TunnelKit Error: Encryption initialization - crypto setup failed")
+        case .encryptionData:
+            log.error("TunnelKit.Protocol", "TunnelKit Error: Encryption data - packet encrypt/decrypt failed")
+        case .lzo:
+            log.error("TunnelKit.Protocol", "TunnelKit Error: LZO compression - decompression failed")
+        case .serverCompression:
+            log.error("TunnelKit.Protocol", "TunnelKit Error: Server compression - unsupported algorithm")
+        case .timeout:
+            log.error("TunnelKit.Protocol", "TunnelKit Error: Timeout - operation took too long")
+        case .linkError:
+            log.error("TunnelKit.Protocol", "TunnelKit Error: Link error - network layer failure")
+        case .routing:
+            log.error("TunnelKit.Protocol", "TunnelKit Error: Routing - network configuration incomplete")
+        case .networkChanged:
+            log.error("TunnelKit.Protocol", "TunnelKit Error: Network changed - connection interrupted")
+        case .gatewayUnattainable:
+            log.error("TunnelKit.Protocol", "TunnelKit Error: Gateway unattainable - routing failed")
+        case .serverShutdown:
+            log.error("TunnelKit.Protocol", "TunnelKit Error: Server shutdown - remote closed connection")
+        case .unexpectedReply:
+            log.error("TunnelKit.Protocol", "TunnelKit Error: Unexpected reply - protocol violation")
+        }
     }
 }
