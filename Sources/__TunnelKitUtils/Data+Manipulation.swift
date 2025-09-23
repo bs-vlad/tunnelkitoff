@@ -1,4 +1,3 @@
-
 import Foundation
 
 // hex -> Data conversion code from: http://stackoverflow.com/questions/32231926/nsdata-from-hex-string

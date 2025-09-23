@@ -1,34 +1,10 @@
-//
-//  MockVPN.swift
-//  TunnelKit
-//
-//  Created by Davide De Rosa on 6/15/18.
-//  Copyright (c) 2024 Davide De Rosa. All rights reserved.
-//
-//  https://github.com/passepartoutvpn
-//
-//  This file is part of TunnelKit.
-//
-//  TunnelKit is free software: you can redistribute it and/or modify
-//  it under the terms of the GNU General Public License as published by
-//  the Free Software Foundation, either version 3 of the License, or
-//  (at your option) any later version.
-//
-//  TunnelKit is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public License
-//  along with TunnelKit.  If not, see <http://www.gnu.org/licenses/>.
-//
-
 import Foundation
 import NetworkExtension
 
 /// Simulates a VPN provider.
 public class MockVPN: VPN {
     private var tunnelBundleIdentifier: String?
+    private var mockConnectionDate: Date?
 
     private var isEnabled: Bool {
         didSet {
@@ -38,6 +14,11 @@ public class MockVPN: VPN {
 
     private var vpnStatus: VPNStatus {
         didSet {
+            if vpnStatus == .connected && oldValue != .connected {
+                mockConnectionDate = Date()
+            } else if vpnStatus != .connected {
+                mockConnectionDate = nil
+            }
             notifyStatus(vpnStatus)
         }
     }
@@ -63,13 +44,12 @@ public class MockVPN: VPN {
         self.tunnelBundleIdentifier = tunnelBundleIdentifier
         isEnabled = true
         vpnStatus = .disconnected
+        mockConnectionDate = nil
     }
 
     public func reconnect(after: DispatchTimeInterval) async throws {
-        if vpnStatus == .connected {
-            vpnStatus = .disconnecting
-            await delay()
-        }
+        vpnStatus = .disconnecting
+        await delay()
         vpnStatus = .connecting
         await delay()
         vpnStatus = .connected
@@ -83,31 +63,25 @@ public class MockVPN: VPN {
     ) async throws {
         self.tunnelBundleIdentifier = tunnelBundleIdentifier
         isEnabled = true
-        if vpnStatus == .connected {
-            vpnStatus = .disconnecting
-            await delay()
-        }
-        vpnStatus = .connecting
-        await delay()
-        vpnStatus = .connected
+        try await reconnect(after: after)
     }
 
     public func disconnect() async {
-        guard vpnStatus != .disconnected else {
-            return
-        }
         vpnStatus = .disconnecting
         await delay()
         vpnStatus = .disconnected
-        isEnabled = false
+        mockConnectionDate = nil
     }
 
     public func uninstall() async {
+        vpnStatus = .disconnecting
+        await delay()
         vpnStatus = .disconnected
+        mockConnectionDate = nil
         isEnabled = false
     }
 
-    // MARK: Helpers
+    // MARK: Notifications
 
     private func notifyReinstall(_ isEnabled: Bool) {
         var notification = Notification(name: VPNNotification.didReinstall)
@@ -121,6 +95,7 @@ public class MockVPN: VPN {
         notification.vpnBundleIdentifier = tunnelBundleIdentifier
         notification.vpnIsEnabled = isEnabled
         notification.vpnStatus = status
+        notification.connectionDate = mockConnectionDate
         NotificationCenter.default.post(notification)
     }
 

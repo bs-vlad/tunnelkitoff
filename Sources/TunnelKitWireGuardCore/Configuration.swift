@@ -1,31 +1,9 @@
-//
-//  Configuration.swift
-//  TunnelKit
-//
-//  Created by Davide De Rosa on 11/23/21.
-//  Copyright (c) 2024 Davide De Rosa. All rights reserved.
-//
-//  https://github.com/passepartoutvpn
-//
-//  This file is part of TunnelKit.
-//
-//  TunnelKit is free software: you can redistribute it and/or modify
-//  it under the terms of the GNU General Public License as published by
-//  the Free Software Foundation, either version 3 of the License, or
-//  (at your option) any later version.
-//
-//  TunnelKit is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public License
-//  along with TunnelKit.  If not, see <http://www.gnu.org/licenses/>.
-//
-
 import Foundation
 import WireGuardKit
 import NetworkExtension
+import TunnelKitLogging
+
+private let log = TKLogger.shared
 
 public protocol WireGuardConfigurationProviding {
     var interface: InterfaceConfiguration { get }
@@ -62,6 +40,29 @@ public protocol WireGuardConfigurationProviding {
 }
 
 extension WireGuard {
+    /// Split tunneling policy type
+    public enum SplitTunnelingPolicy: String, Codable {
+        /// Disable split tunneling (route all traffic through VPN)
+        case off
+        /// Route only specified networks through the VPN
+        case include
+        /// Route all traffic through VPN except specified networks (TODO)
+        case exclude
+    }
+    
+    /// Split tunneling configuration
+    public struct SplitTunneling: Codable, Equatable {
+        /// The policy for split tunneling
+        public let policy: SplitTunnelingPolicy
+        /// The list of CIDRs to include/exclude
+        public let routes: [String]
+        
+        public init(policy: SplitTunnelingPolicy, routes: [String]) {
+            self.policy = policy
+            self.routes = routes
+        }
+    }
+
     public struct ConfigurationBuilder: WireGuardConfigurationProviding {
         private static let defaultGateway4 = IPAddressRange(from: "0.0.0.0/0")!
 
@@ -77,6 +78,7 @@ extension WireGuard {
 
         public init(_ base64PrivateKey: String) throws {
             guard let privateKey = PrivateKey(base64Key: base64PrivateKey) else {
+                log.error("Invalid private key format: \(base64PrivateKey)")
                 throw WireGuard.ConfigurationError.interfaceHasInvalidPrivateKey(base64PrivateKey)
             }
             self.init(privateKey)
@@ -100,6 +102,7 @@ extension WireGuard {
             }
             set {
                 guard let key = PrivateKey(base64Key: newValue) else {
+                    log.error("Failed to set invalid private key: \(newValue)")
                     return
                 }
                 interface.privateKey = key
@@ -111,7 +114,11 @@ extension WireGuard {
                 interface.addresses.map(\.stringRepresentation)
             }
             set {
-                interface.addresses = newValue.compactMap(IPAddressRange.init)
+                let validAddresses = newValue.compactMap(IPAddressRange.init)
+                if validAddresses.count != newValue.count {
+                    log.warning("Some addresses were invalid and will be ignored")
+                }
+                interface.addresses = validAddresses
             }
         }
 
@@ -135,19 +142,19 @@ extension WireGuard {
 
         public var dnsHTTPSURL: URL? {
             get {
-                interface.dnsHTTPSURL
+                nil // Not supported in this WireGuard version
             }
             set {
-                interface.dnsHTTPSURL = newValue
+                // Not supported in this WireGuard version
             }
         }
 
         public var dnsTLSServerName: String? {
             get {
-                interface.dnsTLSServerName
+                nil // Not supported in this WireGuard version
             }
             set {
-                interface.dnsTLSServerName = newValue
+                // Not supported in this WireGuard version
             }
         }
 
@@ -164,16 +171,32 @@ extension WireGuard {
 
         public mutating func addPeer(_ base64PublicKey: String, endpoint: String, allowedIPs: [String] = []) throws {
             guard let publicKey = PublicKey(base64Key: base64PublicKey) else {
+                log.error("Invalid peer public key: \(base64PublicKey)")
                 throw WireGuard.ConfigurationError.peerHasInvalidPublicKey(base64PublicKey)
             }
             var peer = PeerConfiguration(publicKey: publicKey)
-            peer.endpoint = Endpoint(from: endpoint)
-            peer.allowedIPs = allowedIPs.compactMap(IPAddressRange.init)
+            
+            if let endpointObj = Endpoint(from: endpoint) {
+                peer.endpoint = endpointObj
+            } else {
+                log.warning("Invalid endpoint format: \(endpoint), peer will be added without endpoint")
+            }
+            
+            let validAllowedIPs = allowedIPs.compactMap(IPAddressRange.init)
+            if validAllowedIPs.count != allowedIPs.count {
+                log.warning("Some allowed IPs were invalid and will be ignored")
+            }
+            peer.allowedIPs = validAllowedIPs
             peers.append(peer)
         }
 
         public mutating func setPreSharedKey(_ base64Key: String, ofPeer peerIndex: Int) throws {
+            guard peerIndex < peers.count else {
+                log.error("Invalid peer index: \(peerIndex)")
+                return
+            }
             guard let preSharedKey = PreSharedKey(base64Key: base64Key) else {
+                log.error("Invalid pre-shared key format: \(base64Key)")
                 throw WireGuard.ConfigurationError.peerHasInvalidPreSharedKey(base64Key)
             }
             peers[peerIndex].preSharedKey = preSharedKey
@@ -212,7 +235,12 @@ extension WireGuard {
         }
 
         public mutating func addAllowedIP(_ allowedIP: String, toPeer peerIndex: Int) {
+            guard peerIndex < peers.count else {
+                log.error("Invalid peer index: \(peerIndex)")
+                return
+            }
             guard let addr = IPAddressRange(from: allowedIP) else {
+                log.error("Invalid allowed IP format: \(allowedIP)")
                 return
             }
             peers[peerIndex].allowedIPs.append(addr)
@@ -228,10 +256,22 @@ extension WireGuard {
         }
 
         public mutating func setKeepAlive(_ keepAlive: UInt16, forPeer peerIndex: Int) {
+            guard peerIndex < peers.count else {
+                log.error("Invalid peer index: \(peerIndex)")
+                return
+            }
             peers[peerIndex].persistentKeepAlive = keepAlive
         }
 
         public func build() -> Configuration {
+            // Add validation warnings
+            if peers.isEmpty {
+                log.warning("Building configuration without any peers")
+            }
+            if interface.addresses.isEmpty {
+                log.warning("Building configuration without any interface addresses")
+            }
+            
             let tunnelConfiguration = TunnelConfiguration(name: nil, interface: interface, peers: peers)
             return Configuration(tunnelConfiguration: tunnelConfiguration)
         }
@@ -239,6 +279,7 @@ extension WireGuard {
 
     public struct Configuration: Codable, Equatable, WireGuardConfigurationProviding {
         public let tunnelConfiguration: TunnelConfiguration
+        public var splitTunneling: SplitTunneling?
 
         public var interface: InterfaceConfiguration {
             tunnelConfiguration.interface
@@ -279,11 +320,11 @@ extension WireGuard {
         }
 
         public var dnsHTTPSURL: URL? {
-            interface.dnsHTTPSURL
+            nil // Not supported in this WireGuard version
         }
 
         public var dnsTLSServerName: String? {
-            interface.dnsTLSServerName
+            nil // Not supported in this WireGuard version
         }
 
         public var mtu: UInt16? {
@@ -295,14 +336,24 @@ extension WireGuard {
         public init(from decoder: Decoder) throws {
             let container = try decoder.singleValueContainer()
             let wg = try container.decode(String.self)
-            let cfg = try TunnelConfiguration(fromWgQuickConfig: wg, called: nil)
-            self.init(tunnelConfiguration: cfg)
+            do {
+                let cfg = try TunnelConfiguration(fromWgQuickConfig: wg, called: nil)
+                self.init(tunnelConfiguration: cfg)
+            } catch {
+                log.error("Failed to decode WireGuard configuration: \(error)")
+                throw error
+            }
         }
 
         public func encode(to encoder: Encoder) throws {
-            let wg = tunnelConfiguration.asWgQuickConfig()
-            var container = encoder.singleValueContainer()
-            try container.encode(wg)
+            do {
+                let wg = tunnelConfiguration.asWgQuickConfig()
+                var container = encoder.singleValueContainer()
+                try container.encode(wg)
+            } catch {
+                log.error("Failed to encode WireGuard configuration: \(error)")
+                throw error
+            }
         }
     }
 }

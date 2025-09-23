@@ -1,46 +1,42 @@
-//
-//  Configuration.swift
-//  TunnelKit
-//
-//  Created by Davide De Rosa on 8/23/18.
-//  Copyright (c) 2024 Davide De Rosa. All rights reserved.
-//
-//  https://github.com/passepartoutvpn
-//
-//  This file is part of TunnelKit.
-//
-//  TunnelKit is free software: you can redistribute it and/or modify
-//  it under the terms of the GNU General Public License as published by
-//  the Free Software Foundation, either version 3 of the License, or
-//  (at your option) any later version.
-//
-//  TunnelKit is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public License
-//  along with TunnelKit.  If not, see <http://www.gnu.org/licenses/>.
-//
-//  This file incorporates work covered by the following copyright and
-//  permission notice:
-//
-//      Copyright (c) 2018-Present Private Internet Access
-//
-//      Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-//
-//      The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-//
-//      THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-//
-
 import Foundation
 import SwiftyBeaver
 import TunnelKitCore
+import TunnelKitLogging
 
-private let log = SwiftyBeaver.self
+private let log = TKLogger.shared
 
 extension OpenVPN {
+
+    /// Split tunneling policy type.
+    public enum SplitTunnelingPolicy: String, Codable {
+        /// Disable split tunneling (route all traffic through VPN)
+        case off
+        
+        /// Route only specified networks through the VPN.
+        case include
+        
+        /// Route all traffic through the VPN except for specified networks.
+        case exclude
+    }
+    
+    /// Split tunneling configuration.
+    public struct SplitTunneling: Codable, Equatable {
+        /// The policy for split tunneling.
+        public let policy: SplitTunnelingPolicy
+        
+        /// The list of CIDRs to include or exclude based on the policy.
+        public let routes: [String]
+        
+        /// Creates a new split tunneling configuration.
+        ///
+        /// - Parameters:
+        ///   - policy: The policy to use (off, include, or exclude).
+        ///   - routes: The list of CIDRs to include or exclude.
+        public init(policy: SplitTunnelingPolicy, routes: [String]) {
+            self.policy = policy
+            self.routes = routes
+        }
+    }
 
     /// A pair of credentials for authentication.
     public struct Credentials: Codable, Equatable {
@@ -184,6 +180,9 @@ extension OpenVPN {
 
         /// Compression algorithm, disabled by default.
         public var compressionAlgorithm: CompressionAlgorithm?
+        
+        /// Split tunneling configuration, disabled by default.
+        public var splitTunneling: SplitTunneling?
 
         /// The CA for TLS negotiation (PEM format).
         public var ca: CryptoContainer?
@@ -345,6 +344,7 @@ extension OpenVPN {
                 digest: digest,
                 compressionFraming: compressionFraming,
                 compressionAlgorithm: compressionAlgorithm,
+                splitTunneling: splitTunneling,
                 ca: ca,
                 clientCertificate: clientCertificate,
                 clientKey: clientKey,
@@ -415,6 +415,9 @@ extension OpenVPN {
 
         /// - Seealso: `ConfigurationBuilder.compressionAlgorithm`
         public let compressionAlgorithm: CompressionAlgorithm?
+
+        /// - Seealso: `ConfigurationBuilder.splitTunneling`
+        public let splitTunneling: SplitTunneling?
 
         /// - Seealso: `ConfigurationBuilder.ca`
         public let ca: CryptoContainer?
@@ -571,7 +574,7 @@ extension OpenVPN {
                     do {
                         return try $0.withRandomPrefixLength(randomPrefixLength)
                     } catch {
-                        log.warning("Could not prepend random prefix: \(error)")
+                        log.error("TunnelKit.Config", "Could not prepend random prefix to hostname: \(error)")
                         return nil
                     }
                 }
@@ -598,6 +601,7 @@ extension OpenVPN.Configuration {
         builder.digest = digest ?? (withFallbacks ? Fallback.digest : nil)
         builder.compressionFraming = compressionFraming ?? (withFallbacks ? Fallback.compressionFraming : nil)
         builder.compressionAlgorithm = compressionAlgorithm ?? (withFallbacks ? Fallback.compressionAlgorithm : nil)
+        builder.splitTunneling = splitTunneling
         builder.ca = ca
         builder.clientCertificate = clientCertificate
         builder.clientKey = clientKey
@@ -646,52 +650,58 @@ extension OpenVPN.Configuration {
     public func print(isLocal: Bool) {
         if isLocal {
             guard let remotes = remotes else {
+                log.error("TunnelKit.Config", "No remote servers configured - connection impossible")
                 fatalError("No remotes set")
             }
-            log.info("\tRemotes: \(remotes)")
+            log.info("TunnelKit.Config", "Configured remotes: \(remotes)")
         }
 
         if !isLocal {
-            log.info("\tIPv4: \(ipv4?.description ?? "not configured")")
-            log.info("\tIPv6: \(ipv6?.description ?? "not configured")")
+            log.info("TunnelKit.Config", "IPv4 settings: \(ipv4?.description ?? "not configured")")
+            log.info("TunnelKit.Config", "IPv6 settings: \(ipv6?.description ?? "not configured")")
         }
         if let routes = routes4 {
-            log.info("\tRoutes (IPv4): \(routes)")
+            log.info("TunnelKit.Config", "IPv4 routes: \(routes)")
         }
         if let routes = routes6 {
-            log.info("\tRoutes (IPv6): \(routes)")
+            log.info("TunnelKit.Config", "IPv6 routes: \(routes)")
+        }
+        
+        if let splitTunneling = splitTunneling {
+            log.info("TunnelKit.Config", "Split tunneling: \(splitTunneling.policy.rawValue) policy with \(splitTunneling.routes.count) routes")
+           
         }
 
         if let cipher = cipher {
-            log.info("\tCipher: \(cipher)")
+            log.info("TunnelKit.Config", "Primary cipher: \(cipher)")
         } else if isLocal {
-            log.info("\tCipher: \(fallbackCipher)")
+            log.info("TunnelKit.Config", "Fallback cipher: \(fallbackCipher)")
         }
         if let digest = digest {
-            log.info("\tDigest: \(digest)")
+            log.info("TunnelKit.Config", "Primary digest: \(digest)")
         } else if isLocal {
-            log.info("\tDigest: \(fallbackDigest)")
+            log.info("TunnelKit.Config", "Fallback digest: \(fallbackDigest)")
         }
         if let compressionFraming = compressionFraming {
-            log.info("\tCompression framing: \(compressionFraming)")
+            log.info("TunnelKit.Config", "Primary compression framing: \(compressionFraming)")
         } else if isLocal {
-            log.info("\tCompression framing: \(fallbackCompressionFraming)")
+            log.info("TunnelKit.Config", "Fallback compression framing: \(fallbackCompressionFraming)")
         }
         if let compressionAlgorithm = compressionAlgorithm {
-            log.info("\tCompression algorithm: \(compressionAlgorithm)")
+            log.info("TunnelKit.Config", "Primary compression algorithm: \(compressionAlgorithm)")
         } else if isLocal {
-            log.info("\tCompression algorithm: \(fallbackCompressionAlgorithm)")
+            log.info("TunnelKit.Config", "Fallback compression algorithm: \(fallbackCompressionAlgorithm)")
         }
 
         if isLocal {
-            log.info("\tUsername authentication: \(authUserPass ?? false)")
+            log.info("TunnelKit.Config", "Username authentication: \(authUserPass ?? false)")
             if let _ = clientCertificate {
-                log.info("\tClient verification: enabled")
+                log.info("TunnelKit.Config", "Client certificate verification: enabled")
             } else {
-                log.info("\tClient verification: disabled")
+                log.info("TunnelKit.Config", "Client certificate verification: disabled")
             }
             if let tlsWrap = tlsWrap {
-                log.info("\tTLS wrapping: \(tlsWrap.strategy)")
+                log.info("TunnelKit.Config", "TLS wrapping strategy: \(tlsWrap.strategy)")
             } else {
                 log.info("\tTLS wrapping: disabled")
             }

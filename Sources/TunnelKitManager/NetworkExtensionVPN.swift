@@ -1,8 +1,9 @@
 import Foundation
 import NetworkExtension
 import SwiftyBeaver
+import TunnelKitLogging
 
-private let log = SwiftyBeaver.self
+private let log = TKLogger.shared
 
 /// `VPN` based on the NetworkExtension framework.
 public class NetworkExtensionVPN: VPN {
@@ -228,6 +229,8 @@ public class NetworkExtensionVPN: VPN {
         notification.vpnIsEnabled = connection.manager.isEnabled
         notification.vpnStatus = connection.status.wrappedStatus
         notification.connectionDate = connection.connectedDate
+
+        //connection date time connected
         NotificationCenter.default.post(notification)
     }
 

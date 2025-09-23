@@ -1,9 +1,8 @@
 import WireGuardKit
-
-// SPDX-License-Identifier: MIT
-// Copyright © 2018-2021 WireGuard LLC. All Rights Reserved.
-
 import Foundation
+import TunnelKitLogging
+
+private let log = TKLogger.shared
 
 extension TunnelConfiguration {
 
@@ -77,14 +76,17 @@ extension TunnelConfiguration {
                     let peerSectionKeys: Set<String> = ["publickey", "presharedkey", "allowedips", "endpoint", "persistentkeepalive"]
                     if parserState == .inInterfaceSection {
                         guard interfaceSectionKeys.contains(key) else {
+                            log.error("Interface has unrecognized key: \(keyWithCase)")
                             throw ParseError.interfaceHasUnrecognizedKey(keyWithCase)
                         }
                     } else if parserState == .inPeerSection {
                         guard peerSectionKeys.contains(key) else {
+                            log.error("Peer has unrecognized key: \(keyWithCase)")
                             throw ParseError.peerHasUnrecognizedKey(keyWithCase)
                         }
                     }
                 } else if lowercasedLine != "[interface]" && lowercasedLine != "[peer]" {
+                    log.error("Invalid line in config: \(line)")
                     throw ParseError.invalidLine(line)
                 }
             }
@@ -115,12 +117,14 @@ extension TunnelConfiguration {
         let peerPublicKeysArray = peerConfigurations.map(\.publicKey)
         let peerPublicKeysSet = Set<PublicKey>(peerPublicKeysArray)
         if peerPublicKeysArray.count != peerPublicKeysSet.count {
+            log.error("Multiple peers with same public key detected")
             throw ParseError.multiplePeersWithSamePublicKey
         }
 
         if let interfaceConfiguration = interfaceConfiguration {
             self.init(name: name, interface: interfaceConfiguration, peers: peerConfigurations)
         } else {
+            log.error("No interface section found in config")
             throw ParseError.noInterface
         }
     }
@@ -141,12 +145,13 @@ extension TunnelConfiguration {
             let dnsString = dnsLine.joined(separator: ", ")
             output.append("DNS = \(dnsString)\n")
         }
-        if let dnsHTTPSURL = interface.dnsHTTPSURL {
-            output.append("DNSOverHTTPSURL = \(dnsHTTPSURL)\n")
-        }
-        if let dnsTLSServerName = interface.dnsTLSServerName {
-            output.append("DNSOverTLSServerName = \(dnsTLSServerName)\n")
-        }
+        // DNS over HTTPS and TLS features not supported in this WireGuard version
+        // if let dnsHTTPSURL = interface.dnsHTTPSURL {
+        //     output.append("DNSOverHTTPSURL = \(dnsHTTPSURL)\n")
+        // }
+        // if let dnsTLSServerName = interface.dnsTLSServerName {
+        //     output.append("DNSOverTLSServerName = \(dnsTLSServerName)\n")
+        // }
         if let mtu = interface.mtu {
             output.append("MTU = \(mtu)\n")
         }
@@ -174,14 +179,17 @@ extension TunnelConfiguration {
 
     private static func collate(interfaceAttributes attributes: [String: String]) throws -> InterfaceConfiguration {
         guard let privateKeyString = attributes["privatekey"] else {
+            log.error("Interface has no private key")
             throw ParseError.interfaceHasNoPrivateKey
         }
         guard let privateKey = PrivateKey(base64Key: privateKeyString) else {
+            log.error("Interface has invalid private key: \(privateKeyString)")
             throw ParseError.interfaceHasInvalidPrivateKey(privateKeyString)
         }
         var interface = InterfaceConfiguration(privateKey: privateKey)
         if let listenPortString = attributes["listenport"] {
             guard let listenPort = UInt16(listenPortString) else {
+                log.error("Interface has invalid listen port: \(listenPortString)")
                 throw ParseError.interfaceHasInvalidListenPort(listenPortString)
             }
             interface.listenPort = listenPort
@@ -209,12 +217,13 @@ extension TunnelConfiguration {
             interface.dns = dnsServers
             interface.dnsSearch = dnsSearch
         }
-        if let dnsHTTPSURL = attributes["dnsoverhttpsurl"] {
-            interface.dnsHTTPSURL = URL(string: dnsHTTPSURL)
-        }
-        if let dnsTLSServerName = attributes["dnsovertlsservername"] {
-            interface.dnsTLSServerName = dnsTLSServerName
-        }
+        // DNS over HTTPS and TLS features not supported in this WireGuard version
+        // if let dnsHTTPSURL = attributes["dnsoverhttpsurl"] {
+        //     interface.dnsHTTPSURL = URL(string: dnsHTTPSURL)
+        // }
+        // if let dnsTLSServerName = attributes["dnsovertlsservername"] {
+        //     interface.dnsTLSServerName = dnsTLSServerName
+        // }
         if let mtuString = attributes["mtu"] {
             guard let mtu = UInt16(mtuString) else {
                 throw ParseError.interfaceHasInvalidMTU(mtuString)
@@ -226,14 +235,17 @@ extension TunnelConfiguration {
 
     private static func collate(peerAttributes attributes: [String: String]) throws -> PeerConfiguration {
         guard let publicKeyString = attributes["publickey"] else {
+            log.error("Peer has no public key")
             throw ParseError.peerHasNoPublicKey
         }
         guard let publicKey = PublicKey(base64Key: publicKeyString) else {
+            log.error("Peer has invalid public key: \(publicKeyString)")
             throw ParseError.peerHasInvalidPublicKey(publicKeyString)
         }
         var peer = PeerConfiguration(publicKey: publicKey)
         if let preSharedKeyString = attributes["presharedkey"] {
             guard let preSharedKey = PreSharedKey(base64Key: preSharedKeyString) else {
+                log.error("Peer has invalid pre-shared key: \(preSharedKeyString)")
                 throw ParseError.peerHasInvalidPreSharedKey(preSharedKeyString)
             }
             peer.preSharedKey = preSharedKey

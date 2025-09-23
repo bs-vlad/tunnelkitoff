@@ -1,33 +1,10 @@
-//
-//  ResolvedRemote.swift
-//  TunnelKit
-//
-//  Created by Davide De Rosa on 3/3/22.
-//  Copyright (c) 2024 Davide De Rosa. All rights reserved.
-//
-//  https://github.com/passepartoutvpn
-//
-//  This file is part of TunnelKit.
-//
-//  TunnelKit is free software: you can redistribute it and/or modify
-//  it under the terms of the GNU General Public License as published by
-//  the Free Software Foundation, either version 3 of the License, or
-//  (at your option) any later version.
-//
-//  TunnelKit is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public License
-//  along with TunnelKit.  If not, see <http://www.gnu.org/licenses/>.
-//
 
 import Foundation
 import TunnelKitCore
 import SwiftyBeaver
+import TunnelKitLogging
 
-private let log = SwiftyBeaver.self
+private let log = TKLogger.shared
 
 class ResolvedRemote: CustomStringConvertible {
     let originalEndpoint: Endpoint
@@ -50,16 +27,27 @@ class ResolvedRemote: CustomStringConvertible {
         isResolved = false
         resolvedEndpoints = []
         currentEndpointIndex = 0
+        log.debug("TunnelKit.Remote", "Initialized remote for endpoint: \(originalEndpoint.maskedDescription)")
     }
 
     func nextEndpoint() -> Bool {
+        let previousIndex = currentEndpointIndex
         currentEndpointIndex += 1
-        return currentEndpointIndex < resolvedEndpoints.count
+        let hasNext = currentEndpointIndex < resolvedEndpoints.count
+        log.debug("TunnelKit.Remote", "Endpoint selection: moved from[\(previousIndex)] to[\(currentEndpointIndex)], hasNext: \(hasNext)")
+        if hasNext, let endpoint = currentEndpoint {
+            log.debug("TunnelKit.Remote", "Selected endpoint: \(endpoint.maskedDescription)")
+        }
+        return hasNext
     }
 
     func resolve(timeout: Int, queue: DispatchQueue, completionHandler: @escaping () -> Void) {
-        DNSResolver.resolve(originalEndpoint.address, timeout: timeout, queue: queue) { [weak self] in
-            self?.handleResult($0)
+        log.info("TunnelKit.Remote", "Starting DNS resolution for \(originalEndpoint.address) (timeout: \(timeout)ms)")
+        let startTime = Date()
+        DNSResolver.resolve(originalEndpoint.address, timeout: timeout, queue: queue) { [weak self] result in
+            let elapsed = Date().timeIntervalSince(startTime)
+            log.debug("TunnelKit.Remote", "DNS resolution completed in \(String(format: "%.2f", elapsed))s")
+            self?.handleResult(result)
             completionHandler()
         }
     }
@@ -67,24 +55,29 @@ class ResolvedRemote: CustomStringConvertible {
     private func handleResult(_ result: Result<[DNSRecord], Error>) {
         switch result {
         case .success(let records):
-            log.debug("DNS resolved addresses: \(records.map { $0.address }.maskedDescription)")
+            log.info("TunnelKit.Remote", "DNS resolution successful: \(records.count) records for \(originalEndpoint.address)")
+            log.debug("TunnelKit.Remote", "DNS resolved addresses: \(records.map { $0.address }.maskedDescription)")
             isResolved = true
             resolvedEndpoints = unrolledEndpoints(records: records)
+            log.info("TunnelKit.Remote", "Created \(resolvedEndpoints.count) compatible endpoints from DNS records")
 
-        case .failure:
-            log.error("DNS resolution failed!")
+        case .failure(let error):
+            log.error("TunnelKit.Remote", "DNS resolution failed for \(originalEndpoint.address): \(error)")
             isResolved = false
             resolvedEndpoints = []
         }
     }
 
     private func unrolledEndpoints(records: [DNSRecord]) -> [Endpoint] {
-        let endpoints = records.filter {
+        let compatibleRecords = records.filter {
             $0.isCompatible(withProtocol: originalEndpoint.proto)
-        }.map {
+        }
+        log.debug("TunnelKit.Remote", "Filtered \(compatibleRecords.count)/\(records.count) compatible records for protocol \(originalEndpoint.proto)")
+        
+        let endpoints = compatibleRecords.map {
             Endpoint($0.address, originalEndpoint.proto)
         }
-        log.debug("Unrolled endpoints: \(endpoints.maskedDescription)")
+        log.debug("TunnelKit.Remote", "Unrolled endpoints: \(endpoints.maskedDescription)")
         return endpoints
     }
 

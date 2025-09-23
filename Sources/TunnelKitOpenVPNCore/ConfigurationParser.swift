@@ -1,35 +1,11 @@
-//
-//  ConfigurationParser.swift
-//  TunnelKit
-//
-//  Created by Davide De Rosa on 9/5/18.
-//  Copyright (c) 2024 Davide De Rosa. All rights reserved.
-//
-//  https://github.com/passepartoutvpn
-//
-//  This file is part of TunnelKit.
-//
-//  TunnelKit is free software: you can redistribute it and/or modify
-//  it under the terms of the GNU General Public License as published by
-//  the Free Software Foundation, either version 3 of the License, or
-//  (at your option) any later version.
-//
-//  TunnelKit is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public License
-//  along with TunnelKit.  If not, see <http://www.gnu.org/licenses/>.
-//
-
 import Foundation
 import SwiftyBeaver
 import TunnelKitCore
 import CTunnelKitCore
 import __TunnelKitUtils
+import TunnelKitLogging
 
-private let log = SwiftyBeaver.self
+private let log = TKLogger.shared
 
 extension OpenVPN {
 
@@ -301,6 +277,9 @@ extension OpenVPN {
             //
             var optXorMethod: XORMethod?
 
+            // Enhanced logging for configuration parsing
+            let lineCount = lines.count
+            log.info("Starting OpenVPN configuration parsing (\(lineCount) lines)")
             log.verbose("Configuration file:")
             for line in lines {
                 log.verbose(line)
@@ -317,15 +296,19 @@ extension OpenVPN {
 
                 // check blocks first
                 Regex.connection.enumerateSpacedComponents(in: line) { (_) in
+                    log.warning("TunnelKit.Config", "Unsupported configuration: <connection> blocks - this may cause connection issues")
                     unsupportedError = ConfigurationError.unsupportedConfiguration(option: "<connection> blocks")
                 }
                 Regex.fragment.enumerateSpacedComponents(in: line) { (_) in
+                    log.warning("TunnelKit.Config", "Unsupported configuration: fragment - this may affect MTU discovery")
                     unsupportedError = ConfigurationError.unsupportedConfiguration(option: "fragment")
                 }
                 Regex.connectionProxy.enumerateSpacedComponents(in: line) { (_) in
+                    log.warning("TunnelKit.Config", "Unsupported proxy configuration: \(line)")
                     unsupportedError = ConfigurationError.unsupportedConfiguration(option: "proxy: \"\(line)\"")
                 }
                 Regex.externalFiles.enumerateSpacedComponents(in: line) { (_) in
+                    log.warning("TunnelKit.Config", "Unsupported external file reference: \(line)")
                     unsupportedError = ConfigurationError.unsupportedConfiguration(option: "external file: \"\(line)\"")
                 }
                 if line.contains("mtu") || line.contains("mssfix") {
@@ -339,6 +322,7 @@ extension OpenVPN {
                     isContinuation = ($0.first == "2")
                 }
                 guard !isContinuation else {
+                    log.error("TunnelKit.Config", "Multipart PUSH_REPLY detected - this configuration cannot be parsed")
                     throw ConfigurationError.continuationPushReply
                 }
 

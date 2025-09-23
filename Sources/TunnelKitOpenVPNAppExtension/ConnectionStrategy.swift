@@ -1,38 +1,3 @@
-//
-//  ConnectionStrategy.swift
-//  TunnelKit
-//
-//  Created by Davide De Rosa on 6/18/18.
-//  Copyright (c) 2024 Davide De Rosa. All rights reserved.
-//
-//  https://github.com/passepartoutvpn
-//
-//  This file is part of TunnelKit.
-//
-//  TunnelKit is free software: you can redistribute it and/or modify
-//  it under the terms of the GNU General Public License as published by
-//  the Free Software Foundation, either version 3 of the License, or
-//  (at your option) any later version.
-//
-//  TunnelKit is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public License
-//  along with TunnelKit.  If not, see <http://www.gnu.org/licenses/>.
-//
-//  This file incorporates work covered by the following copyright and
-//  permission notice:
-//
-//      Copyright (c) 2018-Present Private Internet Access
-//
-//      Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-//
-//      The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-//
-//      THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-//
 
 import Foundation
 import NetworkExtension
@@ -41,12 +6,12 @@ import TunnelKitCore
 import TunnelKitAppExtension
 import TunnelKitOpenVPNCore
 import TunnelKitOpenVPNManager
+import TunnelKitLogging
 
-private let log = SwiftyBeaver.self
+private let log = TKLogger.shared
 
 class ConnectionStrategy {
     private var remotes: [ResolvedRemote]
-
     private var currentRemoteIndex: Int
 
     var currentRemote: ResolvedRemote? {
@@ -58,10 +23,15 @@ class ConnectionStrategy {
 
     init(configuration: OpenVPN.Configuration) {
         guard let remotes = configuration.processedRemotes, !remotes.isEmpty else {
+            log.error("TunnelKit.Strategy", "No remotes provided in configuration")
             fatalError("No remotes provided")
         }
         self.remotes = remotes.map(ResolvedRemote.init)
         currentRemoteIndex = 0
+        log.info("TunnelKit.Strategy", "Initialized connection strategy with \(remotes.count) remotes")
+        for (index, remote) in remotes.enumerated() {
+            log.debug("TunnelKit.Strategy", "Remote[\(index)]: \(remote.maskedDescription):\(remote.proto.port) (\(remote.proto.socketType))")
+        }
     }
 
     func hasEndpoints() -> Bool {
@@ -74,19 +44,22 @@ class ConnectionStrategy {
     @discardableResult
     func tryNextEndpoint() -> Bool {
         guard let remote = currentRemote else {
+            log.warning("TunnelKit.Strategy", "No current remote available for endpoint selection")
             return false
         }
-        log.debug("Try next endpoint in current remote: \(remote.maskedDescription)")
+        log.debug("TunnelKit.Strategy", "Trying next endpoint in current remote[\(currentRemoteIndex)]: \(remote.maskedDescription)")
         if remote.nextEndpoint() {
+            log.info("TunnelKit.Strategy", "Selected endpoint: \(remote.currentEndpoint?.maskedDescription ?? "unknown")")
             return true
         }
 
-        log.debug("Exhausted endpoints, try next remote")
+        log.info("TunnelKit.Strategy", "Exhausted endpoints for remote[\(currentRemoteIndex)], trying next remote")
         currentRemoteIndex += 1
-        guard let _ = currentRemote else {
-            log.debug("Exhausted remotes, giving up")
+        guard let nextRemote = currentRemote else {
+            log.warning("TunnelKit.Strategy", "Exhausted all \(remotes.count) remotes, connection failed")
             return false
         }
+        log.info("TunnelKit.Strategy", "Switched to remote[\(currentRemoteIndex)]: \(nextRemote.maskedDescription)")
         return true
     }
 
@@ -96,26 +69,27 @@ class ConnectionStrategy {
         queue: DispatchQueue,
         completionHandler: @escaping (Result<GenericSocket, TunnelKitOpenVPNError>) -> Void) {
         guard let remote = currentRemote else {
+            log.error("TunnelKit.Strategy", "No current remote available for socket creation")
             completionHandler(.failure(.exhaustedEndpoints))
             return
         }
         if remote.isResolved, let endpoint = remote.currentEndpoint {
-            log.debug("Pick current endpoint: \(endpoint.maskedDescription)")
+            log.info("TunnelKit.Strategy", "Creating socket to resolved endpoint: \(endpoint.maskedDescription) (\(endpoint.proto.socketType))")
             let socket = provider.createSocket(to: endpoint)
             completionHandler(.success(socket))
             return
         }
 
-        log.debug("No resolved endpoints, will resort to DNS resolution")
-        log.debug("DNS resolve address: \(remote.maskedDescription)")
+        log.info("TunnelKit.Strategy", "No resolved endpoints available, initiating DNS resolution")
+        log.debug("TunnelKit.Strategy", "DNS resolution target: \(remote.maskedDescription) (timeout: \(timeout)ms)")
 
         remote.resolve(timeout: timeout, queue: queue) {
             guard let endpoint = remote.currentEndpoint else {
-                log.error("No endpoints available")
+                log.error("TunnelKit.Strategy", "DNS resolution failed - no endpoints available for \(remote.maskedDescription)")
                 completionHandler(.failure(.dnsFailure))
                 return
             }
-            log.debug("Pick current endpoint: \(endpoint.maskedDescription)")
+            log.info("TunnelKit.Strategy", "DNS resolution successful - creating socket to: \(endpoint.maskedDescription) (\(endpoint.proto.socketType))")
             let socket = provider.createSocket(to: endpoint)
             completionHandler(.success(socket))
         }
